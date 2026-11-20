@@ -19,11 +19,11 @@
         </div>
         <h1 class="brand-title">AICS Records</h1>
         <p class="brand-subtitle">Assistance to Individuals in Crisis Situation</p>
-        <div class="brand-divider"></div>
         <div class="brand-org">
           <p class="org-name">Municipal Social Welfare and Development Office</p>
           <p class="org-lgu">LGU Maramag, Bukidnon</p>
         </div>
+        <div class="brand-divider"></div>
       </div>
 
       <!-- Right Login Card -->
@@ -176,13 +176,6 @@
       </div>
     </header>
 
-    <!-- Offline Notification Banner (when simulated offline) -->
-    <div id="offlineBanner" class="system-offline-banner hidden">
-      <span class="offline-icon">&#9888;</span>
-      <span>You are currently in <strong>Offline Mode</strong>. Records will be saved locally and synced automatically once connection is restored.</span>
-      <button type="button" class="btn btn-sm btn-light ml-auto" onclick="toggleOnlineStatus()">Switch to Online</button>
-    </div>
-
     <!-- Sync Toast Alert (Wireframe 10e/10f) -->
     <div id="syncToast" class="sync-toast hidden">
       <div class="sync-toast-content">
@@ -193,6 +186,15 @@
 
     <!-- MAIN TAB CONTENT AREA -->
     <main class="app-body">
+
+      <!-- Offline Notification Banner (Wireframe 2d) -->
+      <div id="offlineBanner" class="system-offline-banner hidden">
+        <div class="offline-icon-circle">!</div>
+        <div class="offline-texts">
+          <strong>You are offline</strong>
+          <span>Searching the saved copy on this computer (last updated Nov 17, 2026, 8:05 AM). Results may not include the newest records.</span>
+        </div>
+      </div>
 
       <!-- ================= 1. HOME TAB ================= -->
       <section id="tab-home" class="tab-pane active">
@@ -293,46 +295,40 @@
         <div id="txnStep1" class="txn-step-panel">
           <div class="row">
             <!-- Left Card: Pre-check Names -->
-            <div class="col-md-5">
+            <div class="col-md-4">
               <div class="card p-4">
-                <h3 class="card-title">Previous record check</h3>
-                <p class="text-muted text-sm mb-3">Verify eligibility against the MSWDO database before proceeding to requirements.</p>
-
-                <div class="form-group">
-                  <label for="step1ClientName">Client name *</label>
-                  <input type="text" id="step1ClientName" class="form-control" placeholder="e.g. Maria Santos" oninput="runStep1EligibilityCheck()">
+                <h3 class="card-title mb-3">Previous record check</h3>
+                <div class="precheck-summary-names mb-3">
+                  <div class="precheck-name-row mb-2">Client: <strong id="step1ClientDisplay">Maria Santos</strong></div>
+                  <div class="form-group mb-0">
+                    <label for="step1BeneficiaryInput" class="precheck-label">Beneficiary:</label>
+                    <input type="text" id="step1BeneficiaryInput" class="form-control" placeholder="e.g. Juan Santos (son)" oninput="handleStep1BeneficiaryChange(event)">
+                  </div>
                 </div>
 
-                <div class="form-group">
-                  <label for="step1BeneficiaryName">Beneficiary name (if different)</label>
-                  <input type="text" id="step1BeneficiaryName" class="form-control" placeholder="e.g. Juan Santos (son)" oninput="runStep1EligibilityCheck()">
-                </div>
-
-                <div id="step1EligibilityResult" class="mt-3">
-                  <!-- Injected check result badge -->
-                  <div class="status-box status-box-neutral">
-                    Enter the client name above to verify eligibility and 3-month waiting period.
+                <div id="step1EligibilityResult">
+                  <div class="precheck-result-box">
+                    <div class="precheck-result-icon">&#10003;</div>
+                    <div class="precheck-result-texts">
+                      <strong>No previous record found</strong>
+                      <span>Both names were checked. The client can continue to the requirements.</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- Right Card: Requirements Checklist -->
-            <div class="col-md-7">
+            <div class="col-md-8">
               <div class="card p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h3 class="card-title mb-0">Requirements checklist</h3>
-                </div>
+                <h3 class="card-title mb-3">Requirements checklist</h3>
 
                 <!-- Assistance Type Selector Buttons -->
-                <label class="form-label font-weight-bold">Select Assistance Type:</label>
                 <div class="assistance-pills mb-3" id="step1AssistancePills">
                   <button type="button" class="btn-pill active" onclick="selectStep1Assistance('Medical')">Medical</button>
                   <button type="button" class="btn-pill" onclick="selectStep1Assistance('Burial')">Burial</button>
                   <button type="button" class="btn-pill" onclick="selectStep1Assistance('Fire incident')">Fire incident</button>
                   <button type="button" class="btn-pill" onclick="selectStep1Assistance('Transportation')">Transportation</button>
-                  <button type="button" class="btn-pill" onclick="selectStep1Assistance('Food')">Food</button>
-                  <button type="button" class="btn-pill" onclick="selectStep1Assistance('Cash')">Cash assistance</button>
                 </div>
 
                 <!-- Dynamic Checklist Items with Checkboxes -->
@@ -340,13 +336,22 @@
                   <!-- Populated by JS based on assistance type -->
                 </div>
 
-                <p class="text-muted text-xs mt-3">
-                  Checklist requirements are verified with the physical documents presented by the client. All required items must be verified before proceeding to the form.
+                <p class="text-muted text-xs mt-3 mb-3" id="step1ChecklistNote">
+                  Sample checklist for the Medical type. Documents and number of copies per assistance type are still to be confirmed with the MSWDO.
                 </p>
 
-                <div class="d-flex justify-content-between mt-4">
-                  <button type="button" class="btn btn-outline-secondary" onclick="navigateToTab('home')">Back to Home</button>
-                  <button type="button" id="btnContinueToForm" class="btn btn-primary" onclick="proceedToStep2Form()">Continue to form</button>
+                <!-- Incomplete Warning Box (Wireframe 3b) -->
+                <div id="step1MissingWarning" class="checklist-missing-warning hidden">
+                  <div class="missing-warning-icon">!</div>
+                  <div class="missing-warning-texts">
+                    <strong id="missingWarningCount">2 required documents are missing</strong>
+                    <span>Ask the client to return with the missing items. The transaction cannot continue until the requirements are complete.</span>
+                  </div>
+                </div>
+
+                <div class="step1-actions-row">
+                  <button type="button" class="btn btn-outline-primary" onclick="navigateToTab('home')">Back to Home</button>
+                  <button type="button" id="btnContinueToForm" class="btn btn-continue-disabled" onclick="proceedToStep2Form()">Continue to form</button>
                 </div>
               </div>
             </div>

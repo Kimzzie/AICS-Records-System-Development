@@ -912,6 +912,12 @@ function navigateToTab(tabName) {
 
   // Trigger tab-specific refresh
   if (tabName === "home") {
+    const homeSearch = document.getElementById("homeSearchInput");
+    if (!homeSearch || !homeSearch.value.trim()) {
+      document.getElementById("homeSearchResultArea").classList.add("hidden");
+      const recentCard = document.getElementById("recentTransactionsCard");
+      if (recentCard) recentCard.classList.remove("hidden");
+    }
     renderRecentTransactions();
   } else if (tabName === "new-transaction") {
     if (appState.currentTxnStep === 1) {
@@ -974,6 +980,13 @@ function updateOnlineStatusUI() {
 // ==========================================================================
 
 function handleHomeSearchKeyup(e) {
+  const query = document.getElementById("homeSearchInput").value.trim();
+  if (!query) {
+    document.getElementById("homeSearchResultArea").classList.add("hidden");
+    document.getElementById("searchShortWarning").classList.add("hidden");
+    const recentCard = document.getElementById("recentTransactionsCard");
+    if (recentCard) recentCard.classList.remove("hidden");
+  }
   if (e.key === "Enter") {
     executeHomeSearch();
   }
@@ -983,10 +996,12 @@ function executeHomeSearch() {
   const query = document.getElementById("homeSearchInput").value.trim().toLowerCase();
   const resultArea = document.getElementById("homeSearchResultArea");
   const warning = document.getElementById("searchShortWarning");
+  const recentCard = document.getElementById("recentTransactionsCard");
 
   if (!query) {
     resultArea.classList.add("hidden");
     warning.classList.add("hidden");
+    if (recentCard) recentCard.classList.remove("hidden");
     return;
   }
 
@@ -994,6 +1009,7 @@ function executeHomeSearch() {
   if (query.length < 3) {
     warning.classList.remove("hidden");
     resultArea.classList.add("hidden");
+    if (recentCard) recentCard.classList.remove("hidden");
     return;
   }
   warning.classList.add("hidden");
@@ -1006,10 +1022,16 @@ function executeHomeSearch() {
   });
 
   resultArea.classList.remove("hidden");
+  if (recentCard) recentCard.classList.add("hidden");
 
   if (matches.length === 0) {
-    // New Client - Fully Eligible (Wireframe 2e)
+    // New Client - Fully Eligible (Wireframe 2d / 2e)
     const formattedQueryName = capitalizeWords(query);
+    const isOffline = !appState.isOnline;
+    const alertDesc = isOffline
+      ? `No AICS transaction is recorded for "${formattedQueryName}" in the saved copy. Check again once the connection returns if the record is critical.`
+      : `No previous record found in the MSWDO database. The client can continue directly to assistance requirements.`;
+
     resultArea.innerHTML = `
       <div class="card eligibility-card eligible p-4">
         <div class="eligibility-header-line">
@@ -1019,8 +1041,8 @@ function executeHomeSearch() {
         <div class="eligibility-alert-box">
           <div class="eligibility-alert-icon">&#10003;</div>
           <div>
-            <strong>Eligible: New client</strong><br>
-            <span class="text-sm">No previous record found in the MSWDO database. The client can continue directly to assistance requirements.</span>
+            <strong>No previous record found</strong><br>
+            <span class="text-sm">${alertDesc}</span>
           </div>
         </div>
         <div class="eligibility-actions-row">
@@ -1127,7 +1149,12 @@ function renderRecentTransactions() {
 // ==========================================================================
 
 function initStep1Check() {
-  renderAssistanceChecklist(appState.step1AssistanceType);
+  if (!appState.step1ClientName) {
+    appState.step1ClientName = "Maria Santos";
+    appState.step1BeneficiaryName = "Juan Santos (son)";
+  }
+  updateStep1Display();
+  renderAssistanceChecklist(appState.step1AssistanceType || "Medical");
   populateBarangayOptions();
   populateAgencyDropdowns();
 }
@@ -1152,106 +1179,125 @@ function renderAssistanceChecklist(astType) {
     </label>
   `).join("");
 
+  const noteEl = document.getElementById("step1ChecklistNote");
+  if (noteEl) {
+    noteEl.textContent = `Sample checklist for the ${found.type} type. Documents and number of copies per assistance type are still to be confirmed with the MSWDO.`;
+  }
+
   validateStep1Checklist();
 }
 
 function validateStep1Checklist() {
   const checkboxes = document.querySelectorAll("#checklistContainer input[type='checkbox']");
-  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  const unchecked = Array.from(checkboxes).filter(cb => !cb.checked);
   const btn = document.getElementById("btnContinueToForm");
+  const warning = document.getElementById("step1MissingWarning");
+  const warningCount = document.getElementById("missingWarningCount");
 
-  if (allChecked) {
+  if (unchecked.length === 0) {
+    // Complete (Wireframe 3a)
     btn.disabled = false;
-    btn.classList.remove("btn-secondary");
-    btn.classList.add("btn-primary");
+    btn.className = "btn btn-continue-active";
+    if (warning) warning.classList.add("hidden");
   } else {
+    // Incomplete (Wireframe 3b)
     btn.disabled = true;
-    btn.classList.remove("btn-primary");
-    btn.classList.add("btn-secondary");
+    btn.className = "btn btn-continue-disabled";
+    if (warning) {
+      warning.classList.remove("hidden");
+      const word = unchecked.length === 1 ? "1 required document is missing" : `${unchecked.length} required documents are missing`;
+      if (warningCount) warningCount.textContent = word;
+    }
   }
 }
 
-function runStep1EligibilityCheck() {
-  const cName = document.getElementById("step1ClientName").value.trim().toLowerCase();
-  const bName = document.getElementById("step1BeneficiaryName").value.trim().toLowerCase();
+function handleStep1BeneficiaryChange(e) {
+  appState.step1BeneficiaryName = e.target.value.trim();
+  runStep1BeneficiaryEligibilityCheck();
+}
+
+function runStep1BeneficiaryEligibilityCheck() {
+  const bName = (appState.step1BeneficiaryName || "").toLowerCase();
   const resultDiv = document.getElementById("step1EligibilityResult");
+  if (!resultDiv) return;
 
-  if (!cName) {
-    resultDiv.innerHTML = `
-      <div class="status-box status-box-neutral alert alert-info">
-        Enter the client name above to verify eligibility and 3-month waiting period.
-      </div>
-    `;
-    return;
+  // Check if beneficiary has an active 3-month waiting period in records
+  let match = null;
+  if (bName) {
+    match = appState.records.find(r => {
+      const rc = (r.client.fullName || `${r.client.firstName} ${r.client.lastName}`).toLowerCase();
+      const rb = (r.beneficiary.fullName || `${r.beneficiary.firstName} ${r.beneficiary.lastName}`).toLowerCase();
+      return rc.includes(bName) || rb.includes(bName);
+    });
   }
 
-  // Check matching records
-  const match = appState.records.find(r => {
-    const rc = (r.client.fullName || "").toLowerCase();
-    const rb = (r.beneficiary.fullName || "").toLowerCase();
-    return (rc.includes(cName) || (bName && rb.includes(bName)));
-  });
+  if (match) {
+    const waitingMonths = appState.rules.waitingPeriodMonths || 3;
+    const servedDate = new Date(match.dateIso || match.date);
+    const eligibleDate = new Date(servedDate);
+    eligibleDate.setMonth(eligibleDate.getMonth() + waitingMonths);
+    const diffTime = eligibleDate.getTime() - new Date().getTime();
+    const daysRem = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (!match) {
-    resultDiv.innerHTML = `
-      <div class="alert alert-success">
-        <span class="mr-2">&#10003;</span>
-        <div>
-          <strong>No previous record found</strong><br>
-          <span class="text-xs">Both names were checked. The client can continue to the requirements.</span>
+    if (daysRem > 0) {
+      resultDiv.innerHTML = `
+        <div class="alert alert-danger" style="border-radius: 8px;">
+          <span class="mr-2">&#9888;</span>
+          <div>
+            <strong>Beneficiary waiting period active</strong><br>
+            <span class="text-xs">Beneficiary was last served on ${match.date} (${match.service}). Eligible again on ${formatDateDisplay(eligibleDate)} (${daysRem} days remaining).</span>
+          </div>
         </div>
-      </div>
-    `;
-    return;
+      `;
+      return;
+    }
   }
 
-  // Check 3 month rule
-  const servedDate = new Date(match.dateIso || match.date);
-  const eligibleDate = new Date(servedDate);
-  eligibleDate.setMonth(eligibleDate.getMonth() + (appState.rules.waitingPeriodMonths || 3));
-  const diffTime = eligibleDate.getTime() - new Date().getTime();
-  const daysRem = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const checkText = bName
+    ? "Both names were checked. The client can continue to the requirements."
+    : "Client eligibility verified. The client can continue to the requirements.";
 
-  if (daysRem > 0) {
-    resultDiv.innerHTML = `
-      <div class="alert alert-danger">
-        <span class="mr-2">&#9888;</span>
-        <div>
-          <strong>Not eligible: 3-month waiting period active</strong><br>
-          <span class="text-xs">Last served: ${match.date} (${match.service}). Eligible again on ${formatDateDisplay(eligibleDate)} (${daysRem} days remaining).</span>
-        </div>
+  resultDiv.innerHTML = `
+    <div class="precheck-result-box">
+      <div class="precheck-result-icon">&#10003;</div>
+      <div class="precheck-result-texts">
+        <strong>No previous record found</strong>
+        <span>${checkText}</span>
       </div>
-    `;
-  } else {
-    resultDiv.innerHTML = `
-      <div class="alert alert-success">
-        <span class="mr-2">&#10003;</span>
-        <div>
-          <strong>Eligible returning client</strong><br>
-          <span class="text-xs">Last served on ${match.date}. Waiting period completed.</span>
-        </div>
-      </div>
-    `;
+    </div>
+  `;
+}
+
+function updateStep1Display() {
+  const cEl = document.getElementById("step1ClientDisplay");
+  const bInput = document.getElementById("step1BeneficiaryInput");
+  const clientName = appState.step1ClientName || "Maria Santos";
+
+  if (cEl) cEl.textContent = clientName;
+  if (bInput) {
+    bInput.value = appState.step1BeneficiaryName || "";
   }
+
+  runStep1BeneficiaryEligibilityCheck();
 }
 
 function startNewTxnForClient(clientName, isNew) {
+  appState.step1ClientName = clientName;
+  appState.step1BeneficiaryName = "";
+  appState.prefillFromRecord = null;
   navigateToTab("new-transaction");
-  document.getElementById("step1ClientName").value = clientName;
-  runStep1EligibilityCheck();
+  updateStep1Display();
 }
 
 function startNewTxnFromPreviousRecord(glNo) {
   const rec = appState.records.find(r => r.glNo === glNo);
   if (!rec) return;
 
-  navigateToTab("new-transaction");
-  document.getElementById("step1ClientName").value = rec.client.fullName || `${rec.client.firstName} ${rec.client.lastName}`;
-  if (rec.beneficiary && rec.beneficiary.fullName !== rec.client.fullName) {
-    document.getElementById("step1BeneficiaryName").value = rec.beneficiary.fullName;
-  }
-  runStep1EligibilityCheck();
+  appState.step1ClientName = rec.client.fullName || `${rec.client.firstName} ${rec.client.lastName}`;
+  appState.step1BeneficiaryName = rec.beneficiary && rec.beneficiary.fullName ? rec.beneficiary.fullName : "";
   appState.prefillFromRecord = rec;
+  navigateToTab("new-transaction");
+  updateStep1Display();
 }
 
 function proceedToStep2Form() {
@@ -1278,12 +1324,17 @@ function proceedToStep2Form() {
   validUntilDate.setDate(validUntilDate.getDate() + (appState.rules.glValidityDays || 9));
   document.getElementById("astValidUntil").value = formatDateDisplay(validUntilDate);
 
+  // Read current beneficiary input from Step 1
+  const bInput = document.getElementById("step1BeneficiaryInput");
+  const bName = (bInput ? bInput.value.trim() : "") || appState.step1BeneficiaryName || "";
+  appState.step1BeneficiaryName = bName;
+
   // Check if returning client prefill is available
   if (appState.prefillFromRecord) {
     applyReturningClientDetails(appState.prefillFromRecord);
   } else {
     // Populate client name from step 1
-    const step1Name = document.getElementById("step1ClientName").value.trim();
+    const step1Name = appState.step1ClientName || (document.getElementById("step1ClientDisplay") ? document.getElementById("step1ClientDisplay").textContent.trim() : "Maria Santos");
     if (step1Name) {
       const parts = step1Name.split(" ");
       if (parts.length > 1) {
@@ -1293,6 +1344,39 @@ function proceedToStep2Form() {
         document.getElementById("cLastName").value = step1Name;
       }
     }
+
+    if (bName) {
+      const cleanBName = bName.replace(/\s*\(.*?\)\s*/g, "").trim();
+      const bParts = cleanBName.split(" ");
+      if (bParts.length > 1) {
+        document.getElementById("bFirstName").value = bParts[0];
+        document.getElementById("bLastName").value = bParts.slice(1).join(" ");
+      } else {
+        document.getElementById("bLastName").value = cleanBName;
+      }
+      const relMatch = bName.match(/\((.*?)\)/);
+      if (relMatch) {
+        document.getElementById("cRelBeneficiary").value = capitalizeWords(relMatch[1]);
+      }
+      const chkSame = document.getElementById("chkSameAsClient");
+      if (chkSame) {
+        chkSame.checked = false;
+        toggleSameAsClient(false);
+      }
+    } else {
+      // If beneficiary left blank, default to same as client
+      const chkSame = document.getElementById("chkSameAsClient");
+      if (chkSame) {
+        chkSame.checked = true;
+        toggleSameAsClient(true);
+      }
+    }
+
+    const cDisplay = appState.step1ClientName || "Maria Santos";
+    const statusNote = bName
+      ? `Previous record checked: none found for "${cDisplay}" and "${bName}". Requirements are complete.`
+      : `Previous record checked: none found for "${cDisplay}". Requirements are complete.`;
+    document.getElementById("txnStatusText").textContent = statusNote;
   }
 
   // Pre-seed family table
@@ -2075,15 +2159,17 @@ function printSelectedDocuments() {
 
 function startBrandNewTransaction() {
   appState.prefillFromRecord = null;
+  appState.step1ClientName = "";
+  appState.step1BeneficiaryName = "";
   appState.currentTxnStep = 1;
   updateStepperUI(1);
 
   document.getElementById("txnStep4").classList.add("hidden");
+  document.getElementById("txnStep3").classList.add("hidden");
+  document.getElementById("txnStep2").classList.add("hidden");
   document.getElementById("txnStep1").classList.remove("hidden");
   document.getElementById("txnStatusBar").classList.add("hidden");
-  document.getElementById("step1ClientName").value = "";
-  document.getElementById("step1BeneficiaryName").value = "";
-  runStep1EligibilityCheck();
+  initStep1Check();
 }
 
 function restartTxnCheck() {
