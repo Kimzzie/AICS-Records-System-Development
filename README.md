@@ -2,8 +2,33 @@
 **Assistance to Individuals in Crisis Situation**  
 *Municipal Social Welfare and Development Office (MSWDO) · LGU Maramag, Bukidnon*
 
+---
+
 ## 📌 Overview
 This system has been converted and developed from the complete UI prototype and wireframes located in `F:\AICS System Prototype`. Built using pure **HTML5, CSS3, and JavaScript**, it is completely self-contained, runs offline and in any modern web browser without dependencies, and persists data across sessions using `localStorage`.
+
+---
+
+## 🚀 How to Run the System
+1. Open either:
+   - `F:\AICS System Prototype\system\index.html`
+   - or `f:\SCHOOL\Timtim-Cristian-Dive-P.-main\Timtim-Cristian-Dive-P.-main\aics-system\index.html`
+2. Simply double-click `index.html` to open it in your browser (Chrome, Edge, Firefox, Brave, Safari).
+
+---
+
+## 👥 User Accounts & Role-Based Access Control (RBAC)
+
+| Role | Username | Password | Accessible Navigation & Pages |
+| :--- | :--- | :--- | :--- |
+| **Viewer** | `viewer` | `password123` | **Home page** and **Records page** (read-only; New transaction, Monthly report, and Admin are hidden) |
+| **Normal Staff** | `staff` | `password123` | **Home page**, **New transaction page**, and **Records page** (Monthly report and Admin are hidden) |
+| **Senior Staff** | `sstaff` | `password123` | **Home page**, **New transaction page**, **Records page**, and **Monthly report page** (Admin is hidden) |
+| **Administrator** | `admin` | `admin123` | **All pages**: Home, New transaction, Records, Monthly report, and **Administration page** |
+
+---
+
+## ✨ System Features & Wireframe Alignments
 
 ### 1. Authentication & Security
 - **Split-Screen Login** with official LGU Maramag seal and branding.

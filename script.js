@@ -670,7 +670,38 @@ function showAuthView() {
   document.getElementById("appContainer").classList.add("hidden");
   document.getElementById("loginCard").classList.remove("hidden");
   document.getElementById("firstLoginCard").classList.add("hidden");
-  document.getElementById("loginErrorAlert").classList.add("hidden");
+  clearLoginErrors();
+  const passInput = document.getElementById("loginPassword");
+  if (passInput) passInput.type = "password";
+}
+
+// Role-Based Access Control (RBAC) Permissions Matrix
+const ROLE_PERMISSIONS = {
+  "Viewer": ["home", "records"],
+  "Staff": ["home", "new-transaction", "records"],
+  "Senior staff": ["home", "new-transaction", "records", "monthly-report"],
+  "Administrator": ["home", "new-transaction", "records", "monthly-report", "admin"]
+};
+
+function applyRbacNavigation(role) {
+  const navHome = document.getElementById("navHome");
+  const navNewTxn = document.getElementById("navNewTxn");
+  const navRecords = document.getElementById("navRecords");
+  const navMonthly = document.getElementById("navMonthlyReport");
+  const navAdmin = document.getElementById("navAdmin");
+
+  const allowedTabs = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS["Staff"];
+
+  if (navHome) navHome.classList.toggle("hidden", !allowedTabs.includes("home"));
+  if (navNewTxn) navNewTxn.classList.toggle("hidden", !allowedTabs.includes("new-transaction"));
+  if (navRecords) navRecords.classList.toggle("hidden", !allowedTabs.includes("records"));
+  if (navMonthly) navMonthly.classList.toggle("hidden", !allowedTabs.includes("monthly-report"));
+  if (navAdmin) navAdmin.classList.toggle("hidden", !allowedTabs.includes("admin"));
+}
+
+function canCreateTxn() {
+  const role = appState.currentUser ? appState.currentUser.role : "Staff";
+  return role !== "Viewer";
 }
 
 function setAuthenticatedUser(user) {
@@ -686,11 +717,8 @@ function setAuthenticatedUser(user) {
   document.getElementById("dropdownUserName").textContent = user.name;
   document.getElementById("dropdownUserRole").textContent = user.role;
 
-  // Keep all 5 main navigation tabs visible and accessible to test
-  const navMonthly = document.getElementById("navMonthlyReport");
-  const navAdmin = document.getElementById("navAdmin");
-  if (navMonthly) navMonthly.classList.remove("hidden");
-  if (navAdmin) navAdmin.classList.remove("hidden");
+  // Apply strict RBAC navigation visibility
+  applyRbacNavigation(user.role);
 
   // Update drafts count badge
   updateDraftsCountBadge();
@@ -701,22 +729,45 @@ function setAuthenticatedUser(user) {
 
 function handleLogin(e) {
   e.preventDefault();
-  const uname = document.getElementById("loginUsername").value.trim().toLowerCase();
-  const pword = document.getElementById("loginPassword").value;
+  const unameInput = document.getElementById("loginUsername");
+  const passInput = document.getElementById("loginPassword");
+  const uname = unameInput.value.trim().toLowerCase();
+  const pword = passInput.value;
   const errorAlert = document.getElementById("loginErrorAlert");
-  const errorMsg = document.getElementById("loginErrorMsg");
+  const passError = document.getElementById("loginPassErrorMsg");
+  const userError = document.getElementById("loginUserErrorMsg");
+
+  // Reset errors first
+  clearLoginErrors();
 
   const user = appState.users.find(u => u.username.toLowerCase() === uname);
 
-  if (!user || user.password !== pword) {
+  if (!user) {
+    // Username not found
     errorAlert.classList.remove("hidden");
-    errorMsg.textContent = "Invalid username or password. Please try again.";
+    unameInput.classList.add("input-error");
+    if (userError) userError.classList.remove("hidden");
+    unameInput.focus();
+    return;
+  }
+
+  if (user.password !== pword) {
+    // Password incorrect - exactly matches wireframe 1b!
+    errorAlert.classList.remove("hidden");
+    passInput.classList.add("input-error");
+    if (passError) passError.classList.remove("hidden");
+    passInput.focus();
     return;
   }
 
   if (user.status === "Disabled") {
+    // Account disabled (Wireframe 11b)
     errorAlert.classList.remove("hidden");
-    errorMsg.textContent = "Your account has been disabled. Please contact your system administrator.";
+    const title = errorAlert.querySelector(".auth-error-title");
+    const desc = errorAlert.querySelector(".auth-error-desc");
+    if (title) title.textContent = "Account disabled";
+    if (desc) desc.textContent = "This account has been disabled. Please contact your system administrator.";
+    unameInput.classList.add("input-error");
     return;
   }
 
@@ -728,8 +779,43 @@ function handleLogin(e) {
     return;
   }
 
-  errorAlert.classList.add("hidden");
+  clearLoginErrors();
   setAuthenticatedUser(user);
+}
+
+function clearLoginErrors() {
+  const errorAlert = document.getElementById("loginErrorAlert");
+  const passInput = document.getElementById("loginPassword");
+  const unameInput = document.getElementById("loginUsername");
+  const passError = document.getElementById("loginPassErrorMsg");
+  const userError = document.getElementById("loginUserErrorMsg");
+
+  if (errorAlert) errorAlert.classList.add("hidden");
+  if (passInput) passInput.classList.remove("input-error");
+  if (unameInput) unameInput.classList.remove("input-error");
+  if (passError) passError.classList.add("hidden");
+  if (userError) userError.classList.add("hidden");
+
+  // Reset default banner text
+  if (errorAlert) {
+    const title = errorAlert.querySelector(".auth-error-title");
+    const desc = errorAlert.querySelector(".auth-error-desc");
+    if (title) title.textContent = "Wrong username or password";
+    if (desc) desc.textContent = "Please check your details and try again.";
+  }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const isPassword = input.type === "password";
+  input.type = isPassword ? "text" : "password";
+
+  const strike = btn.querySelector(".eye-strike");
+  if (strike) {
+    strike.classList.toggle("hidden", !isPassword);
+  }
 }
 
 function fillDemoUser(roleKey) {
@@ -799,6 +885,14 @@ document.addEventListener("click", function (e) {
 // ==========================================================================
 
 function navigateToTab(tabName) {
+  const currentRole = appState.currentUser ? appState.currentUser.role : "Staff";
+  const allowedTabs = ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS["Staff"];
+
+  // Security guard: prevent navigating to unauthorized tabs
+  if (!allowedTabs.includes(tabName)) {
+    tabName = allowedTabs[0] || "home";
+  }
+
   // Update header nav tabs active state
   document.querySelectorAll(".header-nav .nav-tab").forEach(tab => {
     tab.classList.toggle("active", tab.getAttribute("data-tab") === tabName);
@@ -930,7 +1024,7 @@ function executeHomeSearch() {
           </div>
         </div>
         <div class="eligibility-actions-row">
-          <button type="button" class="btn btn-primary" onclick="startNewTxnForClient('${formattedQueryName}', true)">Start new transaction</button>
+          ${canCreateTxn() ? `<button type="button" class="btn btn-primary" onclick="startNewTxnForClient('${formattedQueryName}', true)">Start new transaction</button>` : `<span class="badge badge-subtle">Viewer access (view only)</span>`}
         </div>
       </div>
     `;
@@ -998,7 +1092,7 @@ function executeHomeSearch() {
         </div>
         <div class="eligibility-actions-row">
           <button type="button" class="btn btn-outline-secondary" onclick="openRecordDetail('${latestRec.glNo}')">View previous record</button>
-          <button type="button" class="btn btn-primary" onclick="startNewTxnFromPreviousRecord('${latestRec.glNo}')">Start new transaction</button>
+          ${canCreateTxn() ? `<button type="button" class="btn btn-primary" onclick="startNewTxnFromPreviousRecord('${latestRec.glNo}')">Start new transaction</button>` : `<span class="badge badge-subtle ml-2">Viewer access (view only)</span>`}
         </div>
       </div>
     `;
