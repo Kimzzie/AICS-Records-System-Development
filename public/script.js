@@ -1160,10 +1160,6 @@ function renderRecentTransactions() {
 // ==========================================================================
 
 function initStep1Check() {
-  if (!appState.step1ClientName) {
-    appState.step1ClientName = "Maria Santos";
-    appState.step1BeneficiaryName = "Juan Santos (son)";
-  }
   updateStep1Display();
   renderAssistanceChecklist(appState.step1AssistanceType || "Medical");
   populateBarangayOptions();
@@ -1284,7 +1280,7 @@ function updateStep1Display() {
   const bInput = document.getElementById("step1BeneficiaryInput");
   const previousRecordColumn = document.getElementById("step1PreviousRecordColumn");
   const requirementsColumn = document.getElementById("step1RequirementsColumn");
-  const clientName = appState.step1ClientName || "Maria Santos";
+  const clientName = appState.step1ClientName || "";
 
   if (cEl) cEl.textContent = clientName;
   if (bInput) bInput.value = appState.step1BeneficiaryName || "";
@@ -2249,10 +2245,30 @@ function printSelectedDocuments() {
 }
 
 function startBrandNewTransaction() {
+  // Clear the previous transaction's form values before starting a fresh client.
+  const transactionPane = document.getElementById("tab-new-transaction");
+  if (transactionPane) {
+    transactionPane.querySelectorAll("input, select, textarea").forEach(field => {
+      if (field.type === "hidden" || field.disabled) return;
+
+      if (field.type === "checkbox" || field.type === "radio") {
+        field.checked = false;
+      } else if (field.tagName === "SELECT") {
+        field.selectedIndex = 0;
+      } else if (!field.readOnly) {
+        field.value = "";
+      }
+      field.classList.remove("input-error", "is-invalid");
+    });
+  }
+
   appState.prefillFromRecord = null;
+  appState.lastSavedRecord = null;
   appState.step1ClientName = "";
   appState.step1BeneficiaryName = "";
+  appState.step1AssistanceType = "";
   appState.currentTxnStep = 1;
+  appState.currentTransaction = null;
   updateStepperUI(1);
 
   document.getElementById("txnStep4").classList.add("hidden");
@@ -2260,6 +2276,17 @@ function startBrandNewTransaction() {
   document.getElementById("txnStep2").classList.add("hidden");
   document.getElementById("txnStep1").classList.remove("hidden");
   document.getElementById("txnStatusBar").classList.add("hidden");
+
+  const draftPill = document.getElementById("draftSavedPill");
+  if (draftPill) draftPill.classList.add("hidden");
+  const issueStatus = document.getElementById("glIssueStatus");
+  if (issueStatus) {
+    issueStatus.classList.add("hidden");
+    issueStatus.textContent = "";
+  }
+  const issueButton = document.getElementById("btnIssueGuaranteeLetter");
+  if (issueButton) issueButton.classList.remove("hidden");
+
   initStep1Check();
 }
 
