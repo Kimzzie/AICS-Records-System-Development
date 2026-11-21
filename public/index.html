@@ -1333,7 +1333,7 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
         <div class="card p-4 mb-4">
           <label for="homeSearchInput" class="form-label font-weight-bold">Search client or beneficiary name</label>
           <div class="search-input-group">
-            <input type="text" id="homeSearchInput" class="form-control form-control-lg" placeholder="Type a last name or first name (e.g. Santos, Garcia, Cruz)" onkeyup="handleHomeSearchKeyup(event)">
+            <input type="text" id="homeSearchInput" maxlength="50" class="form-control form-control-lg" placeholder="Type a last name or first name (e.g. Santos, Garcia, Cruz)" oninput="if(this.value.length>50)this.value=this.value.slice(0,50)" onkeyup="handleHomeSearchKeyup(event)">
             <button type="button" class="btn btn-primary btn-search" onclick="executeHomeSearch()">Search</button>
           </div>
           <div class="form-hint mt-2">
