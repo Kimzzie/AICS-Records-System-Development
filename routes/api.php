@@ -15,7 +15,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me',[AuthController::class,'me']);
         Route::put('/auth/password',[AuthController::class,'changePassword']);
 
-        Route::get('/lookups',[LookupController::class,'index']);
+        Route::get('/lookups',[LookupController::class,'index']);\n        Route::get('/budget/monthly',[BudgetController::class,'show'])->middleware('role:Staff,Senior staff,Administrator');\n        Route::put('/budget/monthly',[BudgetController::class,'set'])->middleware('role:Administrator');\n        Route::post('/transactions/{transaction}/issue-guarantee-letter',[BudgetController::class,'issueGuaranteeLetter'])->middleware('role:Senior staff,Administrator');
         Route::get('/transactions',[TransactionController::class,'index']);
         Route::get('/transactions/search',[TransactionController::class,'search']);
         Route::get('/transactions/{transaction}',[TransactionController::class,'show']);
