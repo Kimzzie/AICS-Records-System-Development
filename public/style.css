@@ -2542,3 +2542,11 @@ textarea.form-control.is-invalid {
     font-size: 12px;
   }
 }
+
+.precheck-result-box.precheck-result-ineligible {
+  background-color: #fef2f2;
+  border-color: #dc2626;
+}
+.precheck-result-box.precheck-result-ineligible .precheck-result-icon {
+  background-color: #dc2626;
+}
