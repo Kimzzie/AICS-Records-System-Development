@@ -1875,46 +1875,78 @@ function setText(elementId, val) {
 }
 
 function validateFormFieldsRemaining(options = {}) {
-  const fields = [
-    { id: "cLastName", label: "Client > Last name" },
-    { id: "cFirstName", label: "Client > First name" },
-    { id: "cStreet", label: "Client > Street/Purok" },
-    { id: "cBarangay", label: "Client > Barangay" },
-    { id: "cBirthdate", label: "Client > Birthdate" },
-    { id: "cGender", label: "Client > Gender" },
-    { id: "cCivilStatus", label: "Client > Civil status" }
-  ];
   const stepPanel = document.getElementById("txnStep2");
   const attempted = options.showErrors === true
     || (stepPanel && stepPanel.dataset.validationAttempted === "true");
   const missing = [];
+  const formRoot = document.getElementById("formInputsScrollArea") || stepPanel;
 
-  fields.forEach(({ id, label }) => {
-    const field = document.getElementById(id);
-    if (!field) return;
-    const isMissing = !String(field.value || "").trim();
-    if (isMissing) missing.push({ id, label, field });
+  if (!formRoot) return missing;
 
-    if (attempted) {
-      const group = field.closest(".form-group");
-      let error = group ? group.querySelector(`.field-validation-error[data-for="${id}"]`) : null;
-      field.classList.toggle("is-invalid", isMissing);
-      field.setAttribute("aria-invalid", isMissing ? "true" : "false");
+  const isVisibleField = (field) => {
+    if (field.disabled || field.readOnly || field.type === "hidden") return false;
+    if (field.closest(".hidden, [hidden]")) return false;
+    return true;
+  };
 
-      if (isMissing && group) {
-        if (!error) {
-          error = document.createElement("small");
-          error.className = "field-validation-error";
-          error.dataset.for = id;
-          error.setAttribute("role", "alert");
-          group.appendChild(error);
-        }
-        error.textContent = id === "cBarangay"
-          ? "Required: choose a barangay"
-          : "This field is required";
-      } else if (error) {
-        error.remove();
+  const labelFor = (field) => {
+    const label = field.id
+      ? formRoot.querySelector(`label[for="${field.id}"]`)
+      : null;
+    if (label) return label.textContent.replace("*", "").trim();
+    const wrappingLabel = field.closest("label");
+    if (wrappingLabel) return wrappingLabel.textContent.trim();
+    return field.placeholder || field.name || field.id || "Required field";
+  };
+
+  const controls = Array.from(formRoot.querySelectorAll("input, select, textarea"))
+    .filter(isVisibleField);
+
+  // Every visible editable text/date/number/select/textarea field is required.
+  controls.filter(field => !["checkbox", "radio", "button", "submit", "reset", "file"].includes(field.type))
+    .forEach(field => {
+      const value = String(field.value || "").trim();
+      if (!value) {
+        missing.push({
+          id: field.id,
+          label: labelFor(field),
+          field
+        });
       }
+      if (attempted) {
+        const group = field.closest(".form-group") || field.parentElement;
+        let error = group ? group.querySelector(`.field-validation-error[data-for="${field.id}"]`) : null;
+        field.classList.toggle("is-invalid", !value);
+        field.setAttribute("aria-invalid", !value ? "true" : "false");
+        if (!value && group) {
+          if (!error) {
+            error = document.createElement("small");
+            error.className = "field-validation-error";
+            error.dataset.for = field.id;
+            error.setAttribute("role", "alert");
+            group.appendChild(error);
+          }
+          error.textContent = "This field is required";
+        } else if (error) {
+          error.remove();
+        }
+      }
+    });
+
+  // Each radio group must have one selected option.
+  const radioNames = [...new Set(controls.filter(f => f.type === "radio").map(f => f.name))];
+  radioNames.forEach(name => {
+    const group = controls.filter(f => f.type === "radio" && f.name === name);
+    if (group.length && !group.some(f => f.checked)) {
+      missing.push({ id: group[0].id, label: labelFor(group[0]), field: group[0] });
+    }
+  });
+
+  // At least one target sector and one financial assistance type must be selected.
+  ["targetSector", "finAssistance"].forEach(name => {
+    const group = controls.filter(f => f.type === "checkbox" && f.name === name);
+    if (group.length && !group.some(f => f.checked)) {
+      missing.push({ id: group[0].id, label: name === "targetSector" ? "Category > Target sector" : "Assistance > Financial assistance", field: group[0] });
     }
   });
 
@@ -1929,10 +1961,9 @@ function validateFormFieldsRemaining(options = {}) {
     summary.classList.toggle("hidden", !attempted || missing.length === 0);
     if (attempted && missing.length > 0) {
       summaryTitle.textContent = `${missing.length} required field${missing.length === 1 ? " is" : "s are"} missing`;
-      summaryDetail.textContent = `${missing[0].label.replace(" > ", " › ")} needs a value. Fix it below, then choose Review and save.`;
+      summaryDetail.textContent = `${missing[0].label.replace(" > ", " › ")} needs a value. Complete all required fields before reviewing and saving.`;
     }
   }
-
   if (msgSpan) {
     if (missing.length === 0) {
       msgSpan.textContent = "All required fields are complete.";
@@ -1941,7 +1972,7 @@ function validateFormFieldsRemaining(options = {}) {
       msgSpan.textContent = `${missing.length} required field${missing.length === 1 ? "" : "s"} missing: ${missing[0].label.replace(" > ", " › ")}`;
       msgSpan.classList.add("validation-error-text");
     } else {
-      msgSpan.textContent = `${missing.length} required field${missing.length === 1 ? "" : "s"} left: ${missing.slice(0, 2).map(item => item.label).join(", ")}${missing.length > 2 ? "..." : ""}`;
+      msgSpan.textContent = `${missing.length} required field${missing.length === 1 ? "" : "s"} left to complete`;
       msgSpan.classList.remove("validation-error-text");
     }
   }
@@ -1950,22 +1981,19 @@ function validateFormFieldsRemaining(options = {}) {
     statusIcon.classList.toggle("status-icon-info", !(attempted && missing.length > 0));
     statusIcon.textContent = attempted && missing.length > 0 ? "!" : "i";
   }
-  if (reviewBtn) reviewBtn.disabled = false;
+  if (reviewBtn) reviewBtn.disabled = missing.length > 0;
 
-  // Update section completion and show the number of missing client fields.
-  updateSectionStatus("sec1", true);
-  updateSectionStatus("sec2", missing.length === 0);
-  const clientStatus = document.getElementById("stat-sec2");
-  if (clientStatus && missing.length > 0) {
-    clientStatus.textContent = `${missing.length} missing`;
-    clientStatus.className = "sec-status text-danger";
-  }
-  updateSectionStatus("sec3", document.getElementById("bLastName").value.trim() !== "");
-  updateSectionStatus("sec4", true);
-  updateSectionStatus("sec5", true);
-  updateSectionStatus("sec6", document.getElementById("astAmount").value.trim() !== "");
-  updateSectionStatus("sec7", document.getElementById("caseSummaryText").value.trim() !== "");
-  updateSectionStatus("sec8", document.getElementById("signInterviewedBy").value.trim() !== "");
+  ["sec1","sec2","sec3","sec4","sec5","sec6","sec7","sec8"].forEach(secId => {
+    const section = document.getElementById(secId);
+    if (!section) return;
+    const sectionMissing = missing.filter(item => section.contains(item.field));
+    updateSectionStatus(secId, sectionMissing.length === 0);
+    const status = document.getElementById(`stat-${secId}`);
+    if (status && sectionMissing.length > 0) {
+      status.textContent = `${sectionMissing.length} missing`;
+      status.className = "sec-status text-danger";
+    }
+  });
 
   return missing;
 }
@@ -3336,6 +3364,17 @@ function handleSessionResume(e) {
 // ==========================================================================
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Re-check required fields whenever the user edits a form control.
+  const formRoot = document.getElementById("formInputsScrollArea");
+  if (formRoot) {
+    ["input", "change"].forEach(eventName => {
+      formRoot.addEventListener(eventName, event => {
+        if (event.target.matches("input, select, textarea")) {
+          validateFormFieldsRemaining();
+        }
+      });
+    });
+  }
   initAuth();
   updateOnlineStatusUI();
   populateBarangayOptions();
