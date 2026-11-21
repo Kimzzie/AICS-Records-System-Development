@@ -361,6 +361,13 @@
 
         <!-- STEP 2: FILL IN FORM + LIVE SYNCHRONOUS DOCUMENT PREVIEW -->
         <div id="txnStep2" class="txn-step-panel hidden">
+          <div id="formValidationSummary" class="form-validation-summary hidden" role="alert" aria-live="polite">
+            <span class="form-validation-icon" aria-hidden="true">!</span>
+            <div class="form-validation-copy">
+              <strong id="formValidationTitle">Required fields are missing</strong>
+              <span id="formValidationDetail">Complete the highlighted fields before reviewing and saving.</span>
+            </div>
+          </div>
           <div class="form-and-preview-grid">
             <!-- Left Navigation Menu for Form Sections -->
             <div class="form-sections-nav">
@@ -499,7 +506,7 @@
                   </div>
                   <div class="col-md-4 form-group">
                     <label for="cBirthdate">Birthdate *</label>
-                    <input type="date" id="cBirthdate" class="form-control" required onchange="calculateClientAge(); updateLivePreview();">
+                    <input type="date" id="cBirthdate" class="form-control" required onchange="calculateClientAge(); updateLivePreview(); validateFormFieldsRemaining();">
                   </div>
                   <div class="col-md-2 form-group">
                     <label for="cAge">Age</label>
@@ -507,7 +514,7 @@
                   </div>
                   <div class="col-md-2 form-group">
                     <label for="cGender">Gender *</label>
-                    <select id="cGender" class="form-control" required onchange="updateLivePreview()">
+                    <select id="cGender" class="form-control" required onchange="updateLivePreview(); validateFormFieldsRemaining()">
                       <option value="">Select</option>
                       <option value="Female">Female</option>
                       <option value="Male">Male</option>
@@ -518,7 +525,7 @@
                 <div class="row">
                   <div class="col-md-4 form-group">
                     <label for="cCivilStatus">Civil status *</label>
-                    <select id="cCivilStatus" class="form-control" required onchange="updateLivePreview(); updateFamilyTableFromClient();">
+                    <select id="cCivilStatus" class="form-control" required onchange="updateLivePreview(); updateFamilyTableFromClient(); validateFormFieldsRemaining();">
                       <option value="">Select</option>
                       <option value="Single">Single</option>
                       <option value="Married">Married</option>
