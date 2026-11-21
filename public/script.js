@@ -1285,12 +1285,24 @@ function updateStep1Display() {
     bInput.value = appState.step1BeneficiaryName || "";
   }
 
-  // Keep the client/beneficiary panel on the left for both new and
-  // returning clients, with the requirements checklist on the right.
-  if (previousRecordColumn) previousRecordColumn.classList.remove("hidden");
+  // New clients get a full-width checklist. Returning clients also see
+  // the previous transaction panel beside the checklist.
+  const hasPreviousRecord = !!appState.prefillFromRecord;
+  if (previousRecordColumn) previousRecordColumn.classList.toggle("hidden", !hasPreviousRecord);
   if (requirementsColumn) {
-    requirementsColumn.classList.remove("col-md-4", "col-md-12");
-    requirementsColumn.classList.add("col-md-8");
+    requirementsColumn.classList.toggle("col-md-12", !hasPreviousRecord);
+    requirementsColumn.classList.toggle("col-md-8", hasPreviousRecord);
+  }
+  const previousClient = document.getElementById("step1PreviousRecordClient");
+  const previousDetails = document.getElementById("step1PreviousRecordDetails");
+  if (hasPreviousRecord && previousClient) {
+    const rec = appState.prefillFromRecord;
+    previousClient.textContent = rec.client?.fullName || `${rec.client?.firstName || ""} ${rec.client?.lastName || ""}`.trim() || clientName;
+    if (previousDetails) {
+      const date = rec.date || rec.dateIso || "Date not available";
+      const service = rec.service || rec.assistanceType || "Previous assistance";
+      previousDetails.innerHTML = `<strong>${previousClient.textContent}</strong><p class="text-muted mb-0">Previous transaction: ${date}<br>Assistance: ${service}</p>`;
+    }
   }
 
   runStep1BeneficiaryEligibilityCheck();
