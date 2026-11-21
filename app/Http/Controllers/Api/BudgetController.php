@@ -23,6 +23,12 @@ class BudgetController extends Controller
             'month' => ['required','date_format:Y-m'],
             'total_budget' => ['required','numeric','min:0','max:999999999999.99'],
         ]);
+        $used = (float) AicsTransaction::whereYear('transaction_date', substr($data['month'], 0, 4))
+            ->whereMonth('transaction_date', substr($data['month'], 5, 2))
+            ->whereNotNull('guarantee_letter_issued_at')->sum('guaranteed_amount');
+        if ((float) $data['total_budget'] < $used) {
+            return response()->json(['message' => 'The new budget cannot be lower than the amount already issued (₱' . number_format($used, 2) . ').'], 422);
+        }
         $budget = AicsMonthlyBudget::updateOrCreate(
             ['budget_month' => $data['month']],
             ['total_budget' => $data['total_budget'], 'set_by' => $request->user()->id]
