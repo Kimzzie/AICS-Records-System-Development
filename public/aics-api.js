@@ -202,7 +202,6 @@
     try { if (token()) await api("/auth/logout", { method: "POST" }); } catch (_) {}
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    sessionStorage.clear();
     pendingTemporaryPassword = "";
     appState.currentUser = null;
     document.getElementById("userDropdown")?.classList.add("hidden");
