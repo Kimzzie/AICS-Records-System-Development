@@ -678,9 +678,9 @@ function showAuthView() {
 // Role-Based Access Control (RBAC) Permissions Matrix
 const ROLE_PERMISSIONS = {
   "Viewer": ["home", "records"],
-  "Staff": ["home", "new-transaction", "records"],
-  "Senior staff": ["home", "new-transaction", "records", "monthly-report"],
-  "Administrator": ["home", "new-transaction", "records", "monthly-report", "admin"]
+  "Staff": ["home", "new-transaction", "records", "budget"],
+  "Senior staff": ["home", "new-transaction", "records", "monthly-report", "budget"],
+  "Administrator": ["home", "new-transaction", "records", "monthly-report", "admin", "budget"]
 };
 
 function applyRbacNavigation(role) {
