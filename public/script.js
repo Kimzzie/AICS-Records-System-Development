@@ -3014,33 +3014,42 @@ function updateNewUserRoleHint(role) {
   document.getElementById("newUserRoleHint").textContent = hints[role] || "";
 }
 
-function handleSaveNewUser(e) {
+async function handleSaveNewUser(e) {
   e.preventDefault();
   const name = document.getElementById("newUserFullName").value.trim();
   const uname = document.getElementById("newUserName").value.trim().toLowerCase();
   const role = document.getElementById("newUserRole").value;
   const tempPass = document.getElementById("newUserTempPass").value;
+  const alertBox = document.getElementById("addUserErrorAlert");
+  const submitButton = e.submitter || e.target.querySelector("button[type='submit']");
 
-  const exists = appState.users.some(u => u.username.toLowerCase() === uname);
-  if (exists) {
-    document.getElementById("addUserErrorAlert").classList.remove("hidden");
+  alertBox.classList.add("hidden");
+  if (!name || !uname || !tempPass) {
+    alertBox.textContent = "Please complete all required fields.";
+    alertBox.classList.remove("hidden");
+    return;
+  }
+  if (tempPass.length < 10) {
+    alertBox.textContent = "Temporary password must be at least 10 characters.";
+    alertBox.classList.remove("hidden");
     return;
   }
 
-  const newUser = {
-    id: `usr-${Date.now()}`,
-    name: name,
-    username: uname,
-    role: role,
-    status: "Active",
-    password: tempPass,
-    mustChangePass: true
-  };
-
-  appState.users.push(newUser);
-  saveStorage(STORAGE_KEYS.USERS, appState.users);
-  closeAddUserModal();
-  renderAdminUsers();
+  if (submitButton) { submitButton.disabled = true; submitButton.textContent = "Adding user..."; }
+  try {
+    await window.adminCreateUser({ name, username: uname, role, password: tempPass });
+    document.getElementById("newUserFullName").value = "";
+    document.getElementById("newUserName").value = "";
+    document.getElementById("newUserRole").value = "Staff";
+    document.getElementById("newUserTempPass").value = "";
+    closeAddUserModal();
+    renderAdminUsers();
+  } catch (error) {
+    alertBox.textContent = error.message || "Unable to add user. Please try again.";
+    alertBox.classList.remove("hidden");
+  } finally {
+    if (submitButton) { submitButton.disabled = false; submitButton.textContent = "Add user"; }
+  }
 }
 
 function toggleUserStatus(userId, newStatus) {

@@ -112,6 +112,11 @@
     populateAgencyDropdowns();
     renderRecentTransactions();
   }
+  window.adminCreateUser = async function (payload) {
+    const result = await api('/admin/users', { method: 'POST', body: JSON.stringify(payload) });
+    await loadAdminUsers();
+    return result;
+  };
   window.adminUpdateUser = async function (userId, payload) {
     const result = await api('/admin/users/' + encodeURIComponent(userId), { method: 'PATCH', body: JSON.stringify(payload) });
     await loadAdminUsers();
