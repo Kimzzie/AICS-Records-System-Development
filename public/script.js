@@ -935,6 +935,8 @@ function navigateToTab(tabName) {
     filterRecordsList();
   } else if (tabName === "monthly-report") {
     handleMonthlyReportTabOpen();
+  } else if (tabName === "budget") {
+    if (typeof loadMonthlyBudget === "function") loadMonthlyBudget();
   } else if (tabName === "admin") {
     handleAdminTabOpen();
   }
