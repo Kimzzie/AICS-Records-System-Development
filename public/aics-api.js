@@ -112,6 +112,16 @@
     populateAgencyDropdowns();
     renderRecentTransactions();
   }
+  window.adminUpdateUser = async function (userId, payload) {
+    const result = await api('/admin/users/' + encodeURIComponent(userId), { method: 'PATCH', body: JSON.stringify(payload) });
+    await loadAdminUsers();
+    return result;
+  };
+  window.adminDeleteUser = async function (userId) {
+    const result = await api('/admin/users/' + encodeURIComponent(userId), { method: 'DELETE' });
+    await loadAdminUsers();
+    return result;
+  };
   async function loadAdminUsers() {
     if (!appState.currentUser || appState.currentUser.role !== "Administrator") return;
     const users = await api("/admin/users");
