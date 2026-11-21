@@ -30,11 +30,23 @@
   function showLoginError(message) {
     const box = document.getElementById("loginErrorAlert");
     if (!box) { alert(message); return; }
-    box.classList.remove("hidden");
+
+    const usernameInput = document.getElementById("loginUsername");
+    const passwordInput = document.getElementById("loginPassword");
     const title = box.querySelector(".auth-error-title");
     const desc = box.querySelector(".auth-error-desc");
-    if (title) title.textContent = "Unable to log in";
-    if (desc) desc.textContent = message;
+    const invalidCredentials = /invalid credentials|disabled account|username|password/i.test(String(message));
+
+    box.classList.remove("hidden");
+    if (invalidCredentials) {
+      if (title) title.textContent = "Wrong username or password";
+      if (desc) desc.textContent = "The username or password you entered is incorrect. Please check your details and try again.";
+      if (usernameInput) usernameInput.classList.add("input-error");
+      if (passwordInput) passwordInput.classList.add("input-error");
+    } else {
+      if (title) title.textContent = "Unable to log in";
+      if (desc) desc.textContent = message || "Please try again.";
+    }
   }
   function mapUser(user) {
     return { id: user.id, name: user.name, username: user.username, role: user.role,
