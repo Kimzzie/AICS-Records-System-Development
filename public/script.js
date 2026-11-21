@@ -1289,9 +1289,8 @@ function updateStep1Display() {
   // returning clients, with the requirements checklist on the right.
   if (previousRecordColumn) previousRecordColumn.classList.remove("hidden");
   if (requirementsColumn) {
-    requirementsColumn.classList.remove("col-md-12");
+    requirementsColumn.classList.remove("col-md-4", "col-md-12");
     requirementsColumn.classList.add("col-md-8");
-    requirementsColumn.classList.add("col-md-4");
   }
 
   runStep1BeneficiaryEligibilityCheck();
