@@ -1637,7 +1637,7 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
                 <div class="row">
                   <div class="col-md-4 form-group">
                     <label for="cMobile">Mobile no.</label>
-                    <input type="tel" id="cMobile" class="form-control" placeholder="0912 345 6789" oninput="validateMobileField(this); updateLivePreview();">
+                    <input type="tel" id="cMobile" class="form-control" placeholder="09XXXXXXXXX" inputmode="numeric" pattern="[0-9]*" maxlength="11" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 11); validateMobileField(this); updateLivePreview();">
                     <span class="text-xs text-danger hidden" id="cMobileError">Invalid format (09XXXXXXXXX)</span>
                   </div>
                   <div class="col-md-4 form-group">
@@ -1752,7 +1752,7 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
                   <div class="row">
                     <div class="col-md-4 form-group">
                       <label for="bMobile">Mobile no.</label>
-                      <input type="tel" id="bMobile" class="form-control" placeholder="09XX XXX XXXX" oninput="updateLivePreview()">
+                      <input type="tel" id="bMobile" class="form-control" placeholder="09XXXXXXXXX" inputmode="numeric" pattern="[0-9]*" maxlength="11" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 11); updateLivePreview()">
                     </div>
                     <div class="col-md-4 form-group">
                       <label for="bBirthdate">Birthdate *</label>
