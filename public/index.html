@@ -4947,6 +4947,50 @@ IsEHTZHn/wCaP//Z" alt="Seal" class="doc-seal-img">
   </div>
 
 
+  <!-- EDIT USER MODAL -->
+  <div class="modal-overlay hidden" id="editUserModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Edit user</h2>
+          <button type="button" class="modal-close" onclick="closeEditUserModal()">&times;</button>
+        </div>
+        <form onsubmit="handleUpdateUser(event)">
+          <div class="modal-body">
+            <input type="hidden" id="editUserId">
+            <div class="form-group">
+              <label for="editUserFullName">Full name *</label>
+              <input type="text" id="editUserFullName" class="form-control" required maxlength="255">
+            </div>
+            <div class="form-group">
+              <label for="editUserUsername">Username</label>
+              <input type="text" id="editUserUsername" class="form-control" readonly>
+              <span class="text-xs text-muted">Username cannot be changed.</span>
+            </div>
+            <div class="form-group">
+              <label for="editUserRole">Access level *</label>
+              <select id="editUserRole" class="form-control" required>
+                <option value="Staff">Staff</option>
+                <option value="Senior staff">Senior staff</option>
+                <option value="Administrator">Administrator</option>
+                <option value="Viewer">Viewer</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editUserPassword">New password (optional)</label>
+              <input type="password" id="editUserPassword" class="form-control" minlength="10" placeholder="Leave blank to keep current password" autocomplete="new-password">
+            </div>
+            <div id="editUserErrorAlert" class="alert alert-danger hidden"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeEditUserModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- 5. ADD PARTNER AGENCY MODAL (Wireframe 12c) -->
   <div class="modal-overlay hidden" id="addAgencyModal">
     <div class="modal-dialog">
