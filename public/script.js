@@ -1224,9 +1224,10 @@ function handleStep1BeneficiaryChange(e) {
 function runStep1BeneficiaryEligibilityCheck() {
   const bName = (appState.step1BeneficiaryName || "").toLowerCase();
   const resultDiv = document.getElementById("step1EligibilityResult");
+  const summaryCard = document.getElementById("step1EligibilitySummary");
   if (!resultDiv) return;
 
-  // Check if beneficiary has an active 3-month waiting period in records
+  // Check whether this beneficiary has an active waiting period in AICS records.
   let match = null;
   if (bName) {
     match = appState.records.find(r => {
@@ -1245,34 +1246,25 @@ function runStep1BeneficiaryEligibilityCheck() {
     const daysRem = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (daysRem > 0) {
+      if (summaryCard) summaryCard.classList.add("precheck-result-ineligible");
       resultDiv.innerHTML = `
-        <div class="alert alert-danger" style="border-radius: 8px;">
-          <span class="mr-2">&#9888;</span>
-          <div>
-            <strong>Beneficiary waiting period active</strong><br>
-            <span class="text-xs">Beneficiary was last served on ${match.date} (${match.service}). Eligible again on ${formatDateDisplay(eligibleDate)} (${daysRem} days remaining).</span>
-          </div>
-        </div>
+        <strong>Beneficiary waiting period active</strong>
+        <span>Beneficiary was last served on ${match.date} (${match.service}). Eligible again on ${formatDateDisplay(eligibleDate)} (${daysRem} days remaining).</span>
       `;
       return;
     }
   }
 
+  if (summaryCard) summaryCard.classList.remove("precheck-result-ineligible");
   const checkText = bName
     ? "Both names were checked. The client can continue to the requirements."
     : "Client eligibility verified. The client can continue to the requirements.";
 
   resultDiv.innerHTML = `
-    <div class="precheck-result-box">
-      <div class="precheck-result-icon">&#10003;</div>
-      <div class="precheck-result-texts">
-        <strong>No previous record found</strong>
-        <span>${checkText}</span>
-      </div>
-    </div>
+    <strong>Eligible to continue</strong>
+    <span>${checkText}</span>
   `;
 }
-
 function updateStep1Display() {
   const cEl = document.getElementById("step1ClientDisplay");
   const bInput = document.getElementById("step1BeneficiaryInput");
