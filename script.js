@@ -1861,36 +1861,100 @@ function setText(elementId, val) {
   if (el) el.textContent = val || "";
 }
 
-function validateFormFieldsRemaining() {
+function validateFormFieldsRemaining(options = {}) {
+  const fields = [
+    { id: "cLastName", label: "Client > Last name" },
+    { id: "cFirstName", label: "Client > First name" },
+    { id: "cStreet", label: "Client > Street/Purok" },
+    { id: "cBarangay", label: "Client > Barangay" },
+    { id: "cBirthdate", label: "Client > Birthdate" },
+    { id: "cGender", label: "Client > Gender" },
+    { id: "cCivilStatus", label: "Client > Civil status" }
+  ];
+  const stepPanel = document.getElementById("txnStep2");
+  const attempted = options.showErrors === true
+    || (stepPanel && stepPanel.dataset.validationAttempted === "true");
   const missing = [];
-  if (!document.getElementById("cLastName").value.trim()) missing.push("Client > Last name");
-  if (!document.getElementById("cFirstName").value.trim()) missing.push("Client > First name");
-  if (!document.getElementById("cStreet").value.trim()) missing.push("Client > Street/Purok");
-  if (!document.getElementById("cBarangay").value.trim()) missing.push("Client > Barangay");
-  if (!document.getElementById("cBirthdate").value.trim()) missing.push("Client > Birthdate");
-  if (!document.getElementById("cGender").value.trim()) missing.push("Client > Gender");
-  if (!document.getElementById("cCivilStatus").value.trim()) missing.push("Client > Civil status");
 
+  fields.forEach(({ id, label }) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const isMissing = !String(field.value || "").trim();
+    if (isMissing) missing.push({ id, label, field });
+
+    if (attempted) {
+      const group = field.closest(".form-group");
+      let error = group ? group.querySelector(`.field-validation-error[data-for="${id}"]`) : null;
+      field.classList.toggle("is-invalid", isMissing);
+      field.setAttribute("aria-invalid", isMissing ? "true" : "false");
+
+      if (isMissing && group) {
+        if (!error) {
+          error = document.createElement("small");
+          error.className = "field-validation-error";
+          error.dataset.for = id;
+          error.setAttribute("role", "alert");
+          group.appendChild(error);
+        }
+        error.textContent = id === "cBarangay"
+          ? "Required: choose a barangay"
+          : "This field is required";
+      } else if (error) {
+        error.remove();
+      }
+    }
+  });
+
+  const summary = document.getElementById("formValidationSummary");
+  const summaryTitle = document.getElementById("formValidationTitle");
+  const summaryDetail = document.getElementById("formValidationDetail");
   const msgSpan = document.getElementById("requiredFieldsCountMsg");
+  const statusIcon = document.querySelector(".form-bottom-bar .status-icon-info");
   const reviewBtn = document.getElementById("btnReviewAndSave");
 
-  if (missing.length === 0) {
-    msgSpan.innerHTML = "<span class='text-success font-weight-bold'>&#10003; All required fields are complete.</span>";
-    reviewBtn.disabled = false;
-  } else {
-    msgSpan.textContent = `${missing.length} required field${missing.length > 1 ? "s" : ""} left: ${missing.slice(0, 2).join(", ")}${missing.length > 2 ? "..." : ""}`;
-    reviewBtn.disabled = false; // Allow user to click to see validation focus
+  if (summary) {
+    summary.classList.toggle("hidden", !attempted || missing.length === 0);
+    if (attempted && missing.length > 0) {
+      summaryTitle.textContent = `${missing.length} required field${missing.length === 1 ? " is" : "s are"} missing`;
+      summaryDetail.textContent = `${missing[0].label.replace(" > ", " › ")} needs a value. Fix it below, then choose Review and save.`;
+    }
   }
 
-  // Update Section Tracker indicators
+  if (msgSpan) {
+    if (missing.length === 0) {
+      msgSpan.textContent = "All required fields are complete.";
+      msgSpan.classList.remove("validation-error-text");
+    } else if (attempted) {
+      msgSpan.textContent = `${missing.length} required field${missing.length === 1 ? "" : "s"} missing: ${missing[0].label.replace(" > ", " › ")}`;
+      msgSpan.classList.add("validation-error-text");
+    } else {
+      msgSpan.textContent = `${missing.length} required field${missing.length === 1 ? "" : "s"} left: ${missing.slice(0, 2).map(item => item.label).join(", ")}${missing.length > 2 ? "..." : ""}`;
+      msgSpan.classList.remove("validation-error-text");
+    }
+  }
+  if (statusIcon) {
+    statusIcon.classList.toggle("status-icon-error", attempted && missing.length > 0);
+    statusIcon.classList.toggle("status-icon-info", !(attempted && missing.length > 0));
+    statusIcon.textContent = attempted && missing.length > 0 ? "!" : "i";
+  }
+  if (reviewBtn) reviewBtn.disabled = false;
+
+  // Update section completion and show the number of missing client fields.
   updateSectionStatus("sec1", true);
-  updateSectionStatus("sec2", !missing.some(m => m.startsWith("Client")));
+  updateSectionStatus("sec2", missing.length === 0);
+  const clientStatus = document.getElementById("stat-sec2");
+  if (clientStatus && missing.length > 0) {
+    clientStatus.textContent = `${missing.length} missing`;
+    clientStatus.className = "sec-status text-danger";
+  }
   updateSectionStatus("sec3", document.getElementById("bLastName").value.trim() !== "");
   updateSectionStatus("sec4", true);
   updateSectionStatus("sec5", true);
   updateSectionStatus("sec6", document.getElementById("astAmount").value.trim() !== "");
   updateSectionStatus("sec7", document.getElementById("caseSummaryText").value.trim() !== "");
   updateSectionStatus("sec8", document.getElementById("signInterviewedBy").value.trim() !== "");
+
+  return missing;
 }
 
 function updateSectionStatus(secId, isDone) {
@@ -1936,16 +2000,23 @@ function onFormScroll() {
 // ==========================================================================
 
 function proceedToStep3Review() {
-  // Validate basic required inputs
-  const cLast = document.getElementById("cLastName").value.trim();
-  const cFirst = document.getElementById("cFirstName").value.trim();
-  const cBgy = document.getElementById("cBarangay").value.trim();
+  // Show inline validation and keep the user on the form until required fields are complete.
+  const stepPanel = document.getElementById("txnStep2");
+  if (stepPanel) stepPanel.dataset.validationAttempted = "true";
+  const missing = validateFormFieldsRemaining({ showErrors: true });
 
-  if (!cLast || !cFirst || !cBgy) {
-    alert("Please fill in the required client information (Name and Barangay) before proceeding.");
+  if (missing.length > 0) {
     scrollToSection("sec2");
+    const firstMissing = document.getElementById(missing[0].id);
+    if (firstMissing) {
+      firstMissing.focus({ preventScroll: true });
+      firstMissing.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
     return;
   }
+
+  const cLast = document.getElementById("cLastName").value.trim();
+  const cFirst = document.getElementById("cFirstName").value.trim();
 
   appState.currentTxnStep = 3;
   updateStepperUI(3);
