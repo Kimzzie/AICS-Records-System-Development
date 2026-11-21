@@ -1603,43 +1603,16 @@ function updateFamilyTableFromClient() {
   if (!tbody) return;
 
   if (tbody.children.length === 0) {
-    // Initial 4 sample rows matching Figma prototype wireframe 4f
+    // Start with the client only. Additional household members are added by the user.
     tbody.innerHTML = `
-      <tr>
+      <tr class="family-client-row">
         <td><input type="text" class="form-control form-control-sm" value="${clientFullName}" oninput="updateLivePreview()"></td>
         <td><input type="text" class="form-control form-control-sm" value="Client" readonly></td>
         <td><input type="number" class="form-control form-control-sm" value="${clientAge}" oninput="updateLivePreview()"></td>
         <td><input type="text" class="form-control form-control-sm" value="${clientCivil}" oninput="updateLivePreview()"></td>
         <td><input type="text" class="form-control form-control-sm" value="${clientOcc}" oninput="updateLivePreview()"></td>
         <td><input type="text" class="form-control form-control-sm" value="${clientSal}" oninput="updateLivePreview()"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm text-danger" onclick="removeFamilyRow(this)">&times;</button></td>
-      </tr>
-      <tr>
-        <td><input type="text" class="form-control form-control-sm" value="Pedro Santos" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Husband" oninput="updateLivePreview()"></td>
-        <td><input type="number" class="form-control form-control-sm" value="48" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Married" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Farmer" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="8,000.00" oninput="updateLivePreview()"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm text-danger" onclick="removeFamilyRow(this)">&times;</button></td>
-      </tr>
-      <tr>
-        <td><input type="text" class="form-control form-control-sm" value="Ana Santos" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Daughter" oninput="updateLivePreview()"></td>
-        <td><input type="number" class="form-control form-control-sm" value="17" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Single" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Student" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="0.00" oninput="updateLivePreview()"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm text-danger" onclick="removeFamilyRow(this)">&times;</button></td>
-      </tr>
-      <tr>
-        <td><input type="text" class="form-control form-control-sm" value="Juan Santos" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Beneficiary" oninput="updateLivePreview()"></td>
-        <td><input type="number" class="form-control form-control-sm" value="9" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Single" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="None" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="0.00" oninput="updateLivePreview()"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm text-danger" onclick="removeFamilyRow(this)">&times;</button></td>
+        <td class="text-center text-muted">—</td>
       </tr>
     `;
   } else {
