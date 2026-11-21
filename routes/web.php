@@ -1,11 +1,5 @@
 <?php
 
-use Illuminate\\Support\\Facades\\Route;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return response()->json([
-        'name' => config('app.name'),
-        'status' => 'Laravel backend is running',
-        'api' => '/api',
-    ]);
-});
+Route::get('/',fn() => response()->json(['name' => config('app.name'),'status' => 'Laravel backend is running','api' => '/api/v1']));
