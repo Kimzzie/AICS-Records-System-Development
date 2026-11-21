@@ -64,6 +64,7 @@
       service: row.assistance_type ? row.assistance_type.name : (row.assistance_provided || "Assistance"),
       assistanceTypeId: row.assistance_type_id, assistanceProvided: row.assistance_provided || "",
       amount: Number(row.amount || 0), amountWords: row.amount_words || "",
+      guaranteeLetterIssuedAt: row.guarantee_letter_issued_at || null, guaranteedAmount: Number(row.guaranteed_amount || 0),
       fundSource: row.fund_source || "", purpose: row.purpose || "",
       partnerAgency: row.partner_agency ? row.partner_agency.name : "",
       partnerAgencyId: row.partner_agency_id, contactPerson: row.contact_person || "",
@@ -335,6 +336,80 @@
       showAuthView();
     } catch (error) { alert(error.message); }
   };
+
+
+  let activeBudgetSummary = null;
+  function peso(value) {
+    return "₱" + Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function selectedBudgetMonth() {
+    const input = document.getElementById("budgetMonth");
+    if (!input.value) input.value = new Date().toISOString().slice(0, 7);
+    return input.value;
+  }
+  window.loadMonthlyBudget = async function () {
+    const role = appState.currentUser?.role;
+    const setup = document.getElementById("budgetSetupCard");
+    if (setup) setup.classList.toggle("hidden", role !== "Administrator");
+    const month = selectedBudgetMonth();
+    try {
+      const summary = await api("/budget/monthly?month=" + encodeURIComponent(month));
+      activeBudgetSummary = summary;
+      document.getElementById("budgetTotalInput").value = summary.total_budget || "";
+      document.getElementById("budgetTotalDisplay").textContent = peso(summary.total_budget);
+      document.getElementById("budgetUsedDisplay").textContent = peso(summary.used);
+      document.getElementById("budgetRemainingDisplay").textContent = peso(summary.remaining);
+      document.getElementById("budgetIssuedCount").textContent = (summary.issued_count || 0) + " issued";
+      const body = document.getElementById("budgetTransactionsBody");
+      body.innerHTML = (summary.transactions || []).length ? summary.transactions.map(t =>
+        "<tr><td>" + escapeBudgetText(t.gl_number) + "</td><td>" + escapeBudgetText(t.client || "") + "</td><td>" + escapeBudgetText(t.date || "") + "</td><td class='text-right'>" + peso(t.amount) + "</td></tr>"
+      ).join("") : "<tr><td colspan='4' class='text-center text-muted p-4'>No issued Guarantee Letters for this month.</td></tr>";
+    } catch (error) { alert("Could not load monthly budget: " + error.message); }
+  };
+  function escapeBudgetText(value) {
+    return String(value).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+  window.saveMonthlyBudget = async function () {
+    if (appState.currentUser?.role !== "Administrator") { alert("Only Administrators can set the monthly budget."); return; }
+    const month = selectedBudgetMonth();
+    const total = Number(document.getElementById("budgetTotalInput").value);
+    if (!Number.isFinite(total) || total < 0) { alert("Enter a valid monthly budget."); return; }
+    try {
+      await api("/budget/monthly", { method: "PUT", body: JSON.stringify({ month: month, total_budget: total }) });
+      await loadMonthlyBudget();
+      alert("Monthly budget saved.");
+    } catch (error) { alert(error.message); }
+  };
+  window.issueCurrentGuaranteeLetter = async function () {
+    const record = appState.lastSavedRecord;
+    if (!record || !record.id) { alert("Save the transaction first, then issue its Guarantee Letter."); return; }
+    if (!["Administrator", "Senior staff"].includes(appState.currentUser?.role)) {
+      alert("Only Senior Staff or Administrators can approve and issue a Guarantee Letter.");
+      return;
+    }
+    if (!confirm("Approve and issue Guarantee Letter " + record.glNo + "? The assistance amount will be deducted from this month's budget.")) return;
+    const button = document.getElementById("btnIssueGuaranteeLetter");
+    if (button) { button.disabled = true; button.textContent = "Processing..."; }
+    try {
+      const result = await api("/transactions/" + record.id + "/issue-guarantee-letter", { method: "POST" });
+      const budgetMonth = document.getElementById("budgetMonth");
+      if (budgetMonth && record.dateIso) budgetMonth.value = record.dateIso.slice(0, 7);
+      const status = document.getElementById("glIssueStatus");
+      status.className = "alert alert-success mb-2";
+      status.textContent = result.message + " The budget has been updated.";
+      if (button) button.classList.add("hidden");
+      await loadMonthlyBudget();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = "Approve and issue Guarantee Letter"; }
+    }
+  };
+  document.addEventListener("DOMContentLoaded", function () {
+    const month = document.getElementById("budgetMonth");
+    if (month) month.value = new Date().toISOString().slice(0, 7);
+    if (month) month.addEventListener("change", function () { loadMonthlyBudget(); });
+  });
 
   window.addEventListener("online", function () { appState.isOnline = true; updateOnlineStatusUI(); });
   window.addEventListener("offline", function () { appState.isOnline = false; updateOnlineStatusUI(); });

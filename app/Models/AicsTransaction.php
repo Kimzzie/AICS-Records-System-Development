@@ -16,7 +16,7 @@ class AicsTransaction extends Model
         'assistance_type_id', 'assistance_provided', 'amount', 'amount_words',
         'fund_source', 'purpose', 'partner_agency_id', 'contact_person',
         'contact_number', 'valid_until', 'case_summary', 'worker_name',
-        'created_by', 'status', 'metadata',
+        'created_by', 'status', 'metadata', 'guarantee_letter_issued_at', 'guaranteed_amount',
     ];
 
     protected function casts(): array
@@ -25,6 +25,8 @@ class AicsTransaction extends Model
             'transaction_date' => 'date',
             'valid_until' => 'date',
             'amount' => 'decimal:2',
+            'guarantee_letter_issued_at' => 'datetime',
+            'guaranteed_amount' => 'decimal:2',
             'metadata' => 'array',
         ];
     }

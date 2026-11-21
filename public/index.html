@@ -1253,6 +1253,7 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
           <button type="button" class="nav-tab active" id="navHome" data-tab="home" onclick="navigateToTab('home')">Home</button>
           <button type="button" class="nav-tab" id="navNewTxn" data-tab="new-transaction" onclick="navigateToTab('new-transaction')">New transaction</button>
           <button type="button" class="nav-tab" id="navRecords" data-tab="records" onclick="navigateToTab('records')">Records</button>
+          <button type="button" class="nav-tab" id="navBudget" data-tab="budget" onclick="navigateToTab('budget')">Budget dashboard</button>
           <button type="button" class="nav-tab" id="navMonthlyReport" data-tab="monthly-report" onclick="navigateToTab('monthly-report')">Monthly report</button>
           <button type="button" class="nav-tab" id="navAdmin" data-tab="admin" onclick="navigateToTab('admin')">Administration</button>
         </nav>
@@ -1371,6 +1372,18 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
         </div>
       </section>
 
+
+<section id="tab-budget" class="tab-pane">
+<div class="content-header"><h1 class="page-title">Monthly Budget Dashboard</h1><p class="page-subtitle">Track approved and issued Guarantee Letters against the monthly AICS budget.</p></div>
+<div class="card p-4 mb-4" id="budgetSetupCard"><h3 class="card-title mb-3">Set monthly budget</h3><div class="row align-items-end">
+<div class="col-md-4 form-group mb-md-0"><label for="budgetMonth">Budget month</label><input type="month" id="budgetMonth" class="form-control"></div>
+<div class="col-md-5 form-group mb-md-0"><label for="budgetTotalInput">Total budget (PHP)</label><input type="number" id="budgetTotalInput" class="form-control" min="0" step="0.01" placeholder="2000000.00"></div>
+<div class="col-md-3"><button type="button" class="btn btn-primary btn-block" onclick="saveMonthlyBudget()">Save budget</button></div></div><p class="text-xs text-muted mt-2 mb-0">Only Administrators can set or change the monthly budget.</p></div>
+<div class="row mb-4"><div class="col-md-4 mb-3"><div class="card p-4 h-100"><div class="text-muted text-sm">Monthly budget</div><div class="page-title mt-2" id="budgetTotalDisplay">₱0.00</div></div></div>
+<div class="col-md-4 mb-3"><div class="card p-4 h-100"><div class="text-muted text-sm">Issued / allocated</div><div class="page-title mt-2 text-danger" id="budgetUsedDisplay">₱0.00</div></div></div>
+<div class="col-md-4 mb-3"><div class="card p-4 h-100"><div class="text-muted text-sm">Remaining balance</div><div class="page-title mt-2 text-success" id="budgetRemainingDisplay">₱0.00</div></div></div></div>
+<div class="card p-4"><div class="d-flex justify-content-between align-items-center mb-3"><h3 class="card-title">Issued Guarantee Letters</h3><span class="text-muted text-sm" id="budgetIssuedCount">0 issued</span></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>GL No.</th><th>Client</th><th>Date</th><th class="text-right">Deducted amount</th></tr></thead><tbody id="budgetTransactionsBody"><tr><td colspan="4" class="text-center text-muted p-4">No issued Guarantee Letters for this month.</td></tr></tbody></table></div></div>
+</section>
 
       <!-- ================= 2. NEW TRANSACTION TAB ================= -->
       <section id="tab-new-transaction" class="tab-pane">
@@ -4291,6 +4304,8 @@ IsEHTZHn/wCaP//Z" alt="Seal" class="doc-seal-img">
 
                 <p class="text-xs text-muted">Signing and stamping stay on paper. If a mistake is found at signing, correct it in Records &rsaquo; Edit or correct.</p>
 
+                <div id="glIssueStatus" class="alert alert-info mb-2">Budget is deducted only after the Guarantee Letter is approved and marked as issued.</div>
+                <button type="button" class="btn btn-primary btn-block mb-2" id="btnIssueGuaranteeLetter" onclick="issueCurrentGuaranteeLetter()">Approve and issue Guarantee Letter</button>
                 <button type="button" class="btn btn-primary btn-block mb-2" onclick="printSelectedDocuments()">Print selected documents</button>
                 <button type="button" class="btn btn-outline-secondary btn-block mb-2" onclick="startBrandNewTransaction()">Start new transaction</button>
                 <button type="button" class="btn btn-outline-secondary btn-block" onclick="navigateToTab('records')">Go to Records</button>

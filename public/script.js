@@ -678,15 +678,16 @@ function showAuthView() {
 // Role-Based Access Control (RBAC) Permissions Matrix
 const ROLE_PERMISSIONS = {
   "Viewer": ["home", "records"],
-  "Staff": ["home", "new-transaction", "records"],
-  "Senior staff": ["home", "new-transaction", "records", "monthly-report"],
-  "Administrator": ["home", "new-transaction", "records", "monthly-report", "admin"]
+  "Staff": ["home", "new-transaction", "records", "budget"],
+  "Senior staff": ["home", "new-transaction", "records", "monthly-report", "budget"],
+  "Administrator": ["home", "new-transaction", "records", "monthly-report", "admin", "budget"]
 };
 
 function applyRbacNavigation(role) {
   const navHome = document.getElementById("navHome");
   const navNewTxn = document.getElementById("navNewTxn");
   const navRecords = document.getElementById("navRecords");
+  const navBudget = document.getElementById("navBudget");
   const navMonthly = document.getElementById("navMonthlyReport");
   const navAdmin = document.getElementById("navAdmin");
 
@@ -695,6 +696,7 @@ function applyRbacNavigation(role) {
   if (navHome) navHome.classList.toggle("hidden", !allowedTabs.includes("home"));
   if (navNewTxn) navNewTxn.classList.toggle("hidden", !allowedTabs.includes("new-transaction"));
   if (navRecords) navRecords.classList.toggle("hidden", !allowedTabs.includes("records"));
+  if (navBudget) navBudget.classList.toggle("hidden", !allowedTabs.includes("budget"));
   if (navMonthly) navMonthly.classList.toggle("hidden", !allowedTabs.includes("monthly-report"));
   if (navAdmin) navAdmin.classList.toggle("hidden", !allowedTabs.includes("admin"));
 }
@@ -706,6 +708,8 @@ function canCreateTxn() {
 
 function setAuthenticatedUser(user) {
   appState.currentUser = user;
+  const issueGlButton = document.getElementById("btnIssueGuaranteeLetter");
+  if (issueGlButton) issueGlButton.classList.toggle("hidden", !["Administrator", "Senior staff"].includes(user.role));
   saveStorage(STORAGE_KEYS.CURRENT_USER, user);
 
   document.getElementById("authContainer").classList.add("hidden");
@@ -933,6 +937,8 @@ function navigateToTab(tabName) {
     filterRecordsList();
   } else if (tabName === "monthly-report") {
     handleMonthlyReportTabOpen();
+  } else if (tabName === "budget") {
+    if (typeof loadMonthlyBudget === "function") loadMonthlyBudget();
   } else if (tabName === "admin") {
     handleAdminTabOpen();
   }
