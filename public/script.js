@@ -1276,11 +1276,23 @@ function runStep1BeneficiaryEligibilityCheck() {
 function updateStep1Display() {
   const cEl = document.getElementById("step1ClientDisplay");
   const bInput = document.getElementById("step1BeneficiaryInput");
+  const previousRecordColumn = document.getElementById("step1PreviousRecordColumn");
+  const requirementsColumn = document.getElementById("step1RequirementsColumn");
   const clientName = appState.step1ClientName || "Maria Santos";
 
   if (cEl) cEl.textContent = clientName;
   if (bInput) {
     bInput.value = appState.step1BeneficiaryName || "";
+  }
+
+  // Only show this panel when the transaction was opened from a matched
+  // historical record. Brand-new clients should go straight to requirements.
+  const hasPreviousRecord = !!appState.prefillFromRecord;
+  if (previousRecordColumn) previousRecordColumn.classList.toggle("hidden", !hasPreviousRecord);
+  if (requirementsColumn) {
+    requirementsColumn.classList.toggle("col-md-4", hasPreviousRecord);
+    requirementsColumn.classList.toggle("col-md-8", hasPreviousRecord);
+    requirementsColumn.classList.toggle("col-md-12", !hasPreviousRecord);
   }
 
   runStep1BeneficiaryEligibilityCheck();
