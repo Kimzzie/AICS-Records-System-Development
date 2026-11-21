@@ -1417,35 +1417,32 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
         </div>
 
 
-        <!-- STEP 1: ELIGIBILITY SUMMARY, PREVIOUS RECORD & REQUIREMENTS -->
+        <!-- STEP 1: CLIENT SUMMARY SIDE PANEL & REQUIREMENTS CHECKLIST -->
         <div id="txnStep1" class="txn-step-panel">
-          <div class="precheck-result-box mb-3" id="step1EligibilitySummary">
-            <div class="precheck-result-icon">&#10003;</div>
-            <div class="precheck-result-texts" style="width:100%;">
-              <div class="precheck-name-row mb-2">Client: <strong id="step1ClientDisplay">Maria Santos</strong></div>
-              <div class="form-group mb-2">
-                <label for="step1BeneficiaryInput" class="precheck-label">Beneficiary:</label>
-                <input type="text" id="step1BeneficiaryInput" class="form-control" placeholder="Enter beneficiary name (if applicable)" oninput="handleStep1BeneficiaryChange(event)">
-              </div>
-              <div id="step1EligibilityResult">
-                <strong>Eligibility check</strong>
-                <span>Client details are ready for verification.</span>
-              </div>
-            </div>
-          </div>
           <div class="row">
-            <div class="col-md-4 hidden" id="step1PreviousRecordColumn">
-              <div class="card p-4 h-100">
-                <h3 class="card-title mb-3">Previous record check</h3>
-                <p class="text-muted mb-2">Previous transaction information</p>
-                <div id="step1PreviousRecordDetails">
-                  <strong id="step1PreviousRecordClient">Maria Santos</strong>
-                  <p class="text-muted mb-0">Review the client's previous AICS transaction before proceeding.</p>
+            <div class="col-md-4" id="step1PreviousRecordColumn">
+              <div class="card p-4 h-100" id="step1EligibilitySummary">
+                <h3 class="card-title mb-3">Client details</h3>
+                <div class="precheck-summary-names mb-3">
+                  <div class="precheck-name-row mb-2">Client: <strong id="step1ClientDisplay">Maria Santos</strong></div>
+                  <div class="form-group mb-0">
+                    <label for="step1BeneficiaryInput" class="precheck-label">Beneficiary:</label>
+                    <input type="text" id="step1BeneficiaryInput" class="form-control" placeholder="Enter beneficiary name (if applicable)" oninput="handleStep1BeneficiaryChange(event)">
+                  </div>
+                </div>
+                <div id="step1EligibilityResult">
+                  <div class="precheck-result-box">
+                    <div class="precheck-result-icon">&#10003;</div>
+                    <div class="precheck-result-texts">
+                      <strong>Eligible to continue</strong>
+                      <span>Client eligibility verified. The client can continue to the requirements.</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
             <!-- Right Card: Requirements Checklist -->
-            <div class="col-md-12" id="step1RequirementsColumn">
+            <div class="col-md-8" id="step1RequirementsColumn">
               <div class="card p-4">
                 <h3 class="card-title mb-3">Requirements checklist</h3>
 
