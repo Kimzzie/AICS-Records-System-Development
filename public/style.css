@@ -2542,24 +2542,3 @@ textarea.form-control.is-invalid {
     font-size: 12px;
   }
 }
-
-.precheck-result-box.precheck-result-ineligible {
-  background-color: #fef2f2;
-  border-color: #dc2626;
-}
-.precheck-result-box.precheck-result-ineligible .precheck-result-icon {
-  background-color: #dc2626;
-}
-
-/* Neutral background for the always-visible client/beneficiary summary. */
-#step1EligibilitySummary {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-}
-#step1EligibilitySummary .precheck-result-icon {
-  background-color: #64748b;
-}
-#step1EligibilitySummary.precheck-result-ineligible {
-  background-color: #ffffff;
-  border-color: #dc2626;
-}
