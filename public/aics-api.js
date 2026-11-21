@@ -137,15 +137,9 @@
         body: JSON.stringify({ username: username, password: password, device_name: "AICS Web" })
       });
       localStorage.setItem(TOKEN_KEY, result.token);
-      pendingTemporaryPassword = password;
+      pendingTemporaryPassword = "";
       appState.currentUser = mapUser(result.user);
-      if (appState.currentUser.mustChangePass) {
-        document.getElementById("loginCard").classList.add("hidden");
-        document.getElementById("firstLoginCard").classList.remove("hidden");
-        document.getElementById("newPasswordInput").setAttribute("minlength", "10");
-        document.getElementById("newPasswordInput").placeholder = "Enter new password (min. 10 characters)";
-        return;
-      }
+      // Skip the first-login password screen; open the regular AICS workspace.
       await loadServerData();
       setAuthenticatedUser(appState.currentUser);
       await loadAdminUsers();
