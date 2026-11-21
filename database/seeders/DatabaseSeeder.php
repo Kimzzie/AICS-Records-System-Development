@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         ] as [$name,$username,$role]) {
             $user = User::firstOrCreate(['username' => $username],[
                 'name' => $name,'password' => bcrypt((string) env('AICS_SEED_PASSWORD',bin2hex(random_bytes(18)))),
-                'role' => $role,'status' => 'Active','must_change_password' => true,
+                'role' => $role,'status' => 'Active','must_change_password' => false,
             ]);
 
             // Optional one-time credential bootstrap: set AICS_SEED_PASSWORD in the
@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             if (env('AICS_SEED_PASSWORD')) {
                 $user->forceFill([
                     'password' => bcrypt((string) env('AICS_SEED_PASSWORD')),
-                    'must_change_password' => true,
+                    'must_change_password' => false,
                     'status' => 'Active',
                 ])->save();
             }
