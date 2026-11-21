@@ -63,7 +63,8 @@
       targetSector: row.target_sector || "",
       service: row.assistance_type ? row.assistance_type.name : (row.assistance_provided || "Assistance"),
       assistanceTypeId: row.assistance_type_id, assistanceProvided: row.assistance_provided || "",
-      amount: Number(row.amount || 0), amountWords: row.amount_words || "",\n      guaranteeLetterIssuedAt: row.guarantee_letter_issued_at || null, guaranteedAmount: Number(row.guaranteed_amount || 0),
+      amount: Number(row.amount || 0), amountWords: row.amount_words || "",
+      guaranteeLetterIssuedAt: row.guarantee_letter_issued_at || null, guaranteedAmount: Number(row.guaranteed_amount || 0),
       fundSource: row.fund_source || "", purpose: row.purpose || "",
       partnerAgency: row.partner_agency ? row.partner_agency.name : "",
       partnerAgencyId: row.partner_agency_id, contactPerson: row.contact_person || "",
@@ -386,15 +387,13 @@
       alert("Only Senior Staff or Administrators can approve and issue a Guarantee Letter.");
       return;
     }
-    if (!document.getElementById("chkPrintGl")?.checked) {
-      alert("Select the Guarantee Letter document before marking it as issued.");
-      return;
-    }
     if (!confirm("Approve and issue Guarantee Letter " + record.glNo + "? The assistance amount will be deducted from this month's budget.")) return;
     const button = document.getElementById("btnIssueGuaranteeLetter");
     if (button) { button.disabled = true; button.textContent = "Processing..."; }
     try {
-      const result = await api("/transactions/" + record.id + "/issue-guarantee-letter", { method: "POST" });\n      const budgetMonth = document.getElementById("budgetMonth");\n      if (budgetMonth && record.dateIso) budgetMonth.value = record.dateIso.slice(0, 7);
+      const result = await api("/transactions/" + record.id + "/issue-guarantee-letter", { method: "POST" });
+      const budgetMonth = document.getElementById("budgetMonth");
+      if (budgetMonth && record.dateIso) budgetMonth.value = record.dateIso.slice(0, 7);
       const status = document.getElementById("glIssueStatus");
       status.className = "alert alert-success mb-2";
       status.textContent = result.message + " The budget has been updated.";
