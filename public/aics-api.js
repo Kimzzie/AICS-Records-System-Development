@@ -169,14 +169,45 @@
       document.getElementById("loginUsername").focus();
     } catch (error) { alert(error.message); }
   };
+  function clearLoginForm() {
+    const form = document.getElementById("loginForm");
+    const username = document.getElementById("loginUsername");
+    const password = document.getElementById("loginPassword");
+
+    if (form) form.reset();
+    if (username) username.value = "";
+    if (password) {
+      password.value = "";
+      password.type = "password";
+    }
+
+    const toggle = document.getElementById("btnToggleLoginPass");
+    if (toggle) {
+      toggle.querySelector(".eye-strike")?.classList.add("hidden");
+      toggle.setAttribute("aria-pressed", "false");
+      toggle.setAttribute("aria-label", "Show password");
+      toggle.setAttribute("title", "Show password");
+    }
+
+    // Clear any values/errors left by the previous session.
+    ["newPasswordInput", "confirmNewPasswordInput", "chgOldPass", "chgNewPass", "chgConfirmPass"].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = "";
+    });
+    if (typeof clearLoginErrors === "function") clearLoginErrors();
+  }
+
   window.handleLogout = async function () {
+    // Revoke the server token when possible, then always clear local credentials.
     try { if (token()) await api("/auth/logout", { method: "POST" }); } catch (_) {}
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    sessionStorage.clear();
     pendingTemporaryPassword = "";
     appState.currentUser = null;
     document.getElementById("userDropdown")?.classList.add("hidden");
     showAuthView();
+    clearLoginForm();
   };
   window.executeHomeSearch = async function () {
     const query = document.getElementById("homeSearchInput").value.trim();
