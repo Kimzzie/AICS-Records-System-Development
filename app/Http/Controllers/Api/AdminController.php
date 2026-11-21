@@ -32,6 +32,22 @@ class AdminController extends Controller
         return response()->json(['data'=>$user->only('id','name','username','role','status')]);
     }
 
+    public function deleteUser(Request $request, User $user)
+    {
+        if ($request->user()->id === $user->id) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+        if ($user->role === 'Administrator' && $user->status === 'Active'
+            && User::where('role', 'Administrator')->where('status', 'Active')->count() <= 1) {
+            return response()->json(['message' => 'The last active administrator cannot be deleted.'], 422);
+        }
+        if ($user->transactions()->exists() || $user->transactionDrafts()->exists()) {
+            return response()->json(['message' => 'This user is linked to saved transactions or drafts. Disable the account instead to preserve records.'], 422);
+        }
+        $user->delete();
+        return response()->json(['message' => 'User deleted.']);
+    }
+
     public function agencies() { return PartnerAgency::withCount('transactions')->orderBy('name')->get(); }
 
     public function createAgency(Request $request)
