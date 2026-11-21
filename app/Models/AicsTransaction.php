@@ -24,7 +24,9 @@ class AicsTransaction extends Model
         return [
             'transaction_date' => 'date',
             'valid_until' => 'date',
-            'amount' => 'decimal:2',\n            'guarantee_letter_issued_at' => 'datetime',\n            'guaranteed_amount' => 'decimal:2',
+            'amount' => 'decimal:2',
+            'guarantee_letter_issued_at' => 'datetime',
+            'guaranteed_amount' => 'decimal:2',
             'metadata' => 'array',
         ];
     }
