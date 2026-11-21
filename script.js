@@ -816,6 +816,11 @@ function togglePasswordVisibility(inputId, btn) {
   if (strike) {
     strike.classList.toggle("hidden", !isPassword);
   }
+
+  // Keep the control's accessible state in sync with the input.
+  btn.setAttribute("aria-pressed", String(isPassword));
+  btn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+  btn.setAttribute("title", isPassword ? "Hide password" : "Show password");
 }
 
 function fillDemoUser(roleKey) {
