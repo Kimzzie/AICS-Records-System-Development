@@ -2451,3 +2451,94 @@ textarea.form-control {
     flex-wrap: wrap;
   }
 }
+
+
+/* Required-field validation states — visual behavior follows UI/4b. */
+.form-validation-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 13px 16px;
+  border: 1px solid #f2a8b2;
+  border-radius: 9px;
+  background: #fff0f2;
+  color: #202938;
+}
+
+.form-validation-summary.hidden {
+  display: none;
+}
+
+.form-validation-icon {
+  display: inline-flex;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #cf1236;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.form-validation-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.form-validation-copy strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.form-validation-copy span {
+  color: #66758a;
+  line-height: 1.4;
+}
+
+.form-control.is-invalid,
+select.form-control.is-invalid,
+textarea.form-control.is-invalid {
+  border: 2px solid #dc1738 !important;
+  box-shadow: 0 0 0 2px rgba(220, 23, 56, .07);
+}
+
+.field-validation-error {
+  display: block;
+  margin-top: 4px;
+  color: #d31335;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.validation-error-text {
+  color: #d31335 !important;
+}
+
+.form-bottom-bar .status-icon-error {
+  background: #cf1236;
+  color: #fff;
+}
+
+.section-tracker-item .sec-status.text-danger {
+  color: #d31335 !important;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .form-validation-summary {
+    padding: 11px 12px;
+    gap: 9px;
+  }
+
+  .form-validation-copy,
+  .form-validation-copy span {
+    font-size: 12px;
+  }
+}
