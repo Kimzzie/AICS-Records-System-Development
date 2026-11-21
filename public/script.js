@@ -708,6 +708,8 @@ function canCreateTxn() {
 
 function setAuthenticatedUser(user) {
   appState.currentUser = user;
+  const issueGlButton = document.getElementById("btnIssueGuaranteeLetter");
+  if (issueGlButton) issueGlButton.classList.toggle("hidden", !["Administrator", "Senior staff"].includes(user.role));
   saveStorage(STORAGE_KEYS.CURRENT_USER, user);
 
   document.getElementById("authContainer").classList.add("hidden");
