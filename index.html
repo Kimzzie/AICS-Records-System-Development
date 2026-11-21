@@ -2245,15 +2245,42 @@
           <div class="modal-body">
             <div class="form-group">
               <label for="chgOldPass">Current password *</label>
-              <input type="password" id="chgOldPass" class="form-control" required>
+              <div class="password-input-wrapper">
+                <input type="password" id="chgOldPass" class="form-control" required>
+                <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('chgOldPass', this)" title="Show/hide password" aria-label="Show password" aria-pressed="false">
+                  <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line class="eye-strike hidden" x1="2" y1="2" x2="22" y2="22"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="form-group">
               <label for="chgNewPass">New password *</label>
-              <input type="password" id="chgNewPass" class="form-control" required minlength="6">
+              <div class="password-input-wrapper">
+                <input type="password" id="chgNewPass" class="form-control" required minlength="6">
+                <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('chgNewPass', this)" title="Show/hide password" aria-label="Show password" aria-pressed="false">
+                  <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line class="eye-strike hidden" x1="2" y1="2" x2="22" y2="22"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="form-group">
               <label for="chgConfirmPass">Confirm new password *</label>
-              <input type="password" id="chgConfirmPass" class="form-control" required>
+              <div class="password-input-wrapper">
+                <input type="password" id="chgConfirmPass" class="form-control" required>
+                <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('chgConfirmPass', this)" title="Show/hide password" aria-label="Show password" aria-pressed="false">
+                  <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line class="eye-strike hidden" x1="2" y1="2" x2="22" y2="22"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
