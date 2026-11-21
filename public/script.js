@@ -1285,14 +1285,13 @@ function updateStep1Display() {
     bInput.value = appState.step1BeneficiaryName || "";
   }
 
-  // Only show this panel when the transaction was opened from a matched
-  // historical record. Brand-new clients should go straight to requirements.
-  const hasPreviousRecord = !!appState.prefillFromRecord;
-  if (previousRecordColumn) previousRecordColumn.classList.toggle("hidden", !hasPreviousRecord);
+  // Keep the client/beneficiary panel on the left for both new and
+  // returning clients, with the requirements checklist on the right.
+  if (previousRecordColumn) previousRecordColumn.classList.remove("hidden");
   if (requirementsColumn) {
-    requirementsColumn.classList.toggle("col-md-4", hasPreviousRecord);
-    requirementsColumn.classList.toggle("col-md-8", hasPreviousRecord);
-    requirementsColumn.classList.toggle("col-md-12", !hasPreviousRecord);
+    requirementsColumn.classList.remove("col-md-12");
+    requirementsColumn.classList.add("col-md-8");
+    requirementsColumn.classList.add("col-md-4");
   }
 
   runStep1BeneficiaryEligibilityCheck();
