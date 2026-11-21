@@ -1909,7 +1909,7 @@ function validateFormFieldsRemaining(options = {}) {
   const summaryTitle = document.getElementById("formValidationTitle");
   const summaryDetail = document.getElementById("formValidationDetail");
   const msgSpan = document.getElementById("requiredFieldsCountMsg");
-  const statusIcon = document.querySelector(".form-bottom-bar .status-icon-info");
+  const statusIcon = document.querySelector(".form-bottom-bar .status-icon-info, .form-bottom-bar .status-icon-error");
   const reviewBtn = document.getElementById("btnReviewAndSave");
 
   if (summary) {
