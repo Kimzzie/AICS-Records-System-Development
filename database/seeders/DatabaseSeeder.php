@@ -21,10 +21,21 @@ class DatabaseSeeder extends Seeder
             ['Maria Theresa S. Aleria','admin','Administrator'],
             ['Auditor Personnel','viewer','Viewer'],
         ] as [$name,$username,$role]) {
-            User::firstOrCreate(['username' => $username],[
+            $user = User::firstOrCreate(['username' => $username],[
                 'name' => $name,'password' => bcrypt((string) env('AICS_SEED_PASSWORD',bin2hex(random_bytes(18)))),
                 'role' => $role,'status' => 'Active','must_change_password' => true,
             ]);
+
+            // Optional one-time credential bootstrap: set AICS_SEED_PASSWORD in the
+            // deployment environment for one deployment, then remove it immediately.
+            // Without this variable, existing user passwords are never overwritten.
+            if (env('AICS_SEED_PASSWORD')) {
+                $user->forceFill([
+                    'password' => bcrypt((string) env('AICS_SEED_PASSWORD')),
+                    'must_change_password' => true,
+                    'status' => 'Active',
+                ])->save();
+            }
         }
 
         foreach ([

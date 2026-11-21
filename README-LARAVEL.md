@@ -47,3 +47,29 @@ Create a Railway MySQL service and configure the Laravel service with:
 If your MySQL service is named differently, adjust the Railway variable reference. Migrations are run during deployment using railway.json.
 
 **Note:** The existing JavaScript frontend has not yet been connected to these API endpoints. Existing localStorage sample records are not automatically migrated into MySQL.
+
+## Frontend integration
+
+The Laravel public directory now contains the existing AICS interface and an API bridge.
+The interface keeps its current layout and document previews. Authentication, lookup
+data, client/beneficiary transaction searches, transaction creation, record listing,
+record corrections, and password changes use the Laravel API.
+
+### First deployment credentials
+
+The seeded accounts require a one-time temporary password. Before the first deployment
+of this integration, set a strong temporary Railway variable named
+`AICS_SEED_PASSWORD`. The database seeder will apply it to the four seeded accounts
+(`staff`, `sstaff`, `admin`, and `viewer`) and mark them for password change.
+After that deployment succeeds, remove `AICS_SEED_PASSWORD` from Railway and redeploy.
+Do not leave this variable configured: when present, each seeding run resets those
+four seeded account passwords to its value.
+
+All four initial accounts use the temporary password you configured. Each account
+must set its own new password at first login (minimum 10 characters).
+
+### Integration scope
+
+The current API bridge makes authentication and core transaction workflows use MySQL.
+Draft management and some administrator maintenance forms are still prototype/local
+until their remaining UI actions are connected to the corresponding API endpoints.
