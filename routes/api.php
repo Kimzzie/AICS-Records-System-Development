@@ -37,6 +37,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/users',[AdminController::class,'users']);
             Route::post('/users',[AdminController::class,'createUser']);
             Route::patch('/users/{user}',[AdminController::class,'updateUser']);
+            Route::delete('/users/{user}',[AdminController::class,'deleteUser']);
             Route::get('/agencies',[AdminController::class,'agencies']);
             Route::post('/agencies',[AdminController::class,'createAgency']);
             Route::patch('/agencies/{agency}',[AdminController::class,'updateAgency']);

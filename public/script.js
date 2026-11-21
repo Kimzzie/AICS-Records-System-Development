@@ -2949,17 +2949,52 @@ function renderAdminUsers() {
           <span class="badge ${u.status === "Active" ? "badge-success-pill" : "badge-subtle text-danger"}">${u.status}</span>
         </td>
         <td class="text-right">
-          <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="editUserRolePrompt('${u.id}')">Edit</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="openEditUserModal('${u.id}')">Edit</button>
           ${u.status === "Active"
-            ? `<button type="button" class="btn btn-sm btn-outline-secondary text-danger" onclick="toggleUserStatus('${u.id}', 'Disabled')" ${isLastAdmin ? "disabled title='Cannot disable last administrator'" : ""}>Disable</button>`
-            : `<button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleUserStatus('${u.id}', 'Active')">Enable</button>`
+            ? `<button type="button" class="btn btn-sm btn-outline-secondary text-danger mr-1" onclick="toggleUserStatus('${u.id}', 'Disabled')" ${isLastAdmin ? "disabled title='Cannot disable last administrator'" : ""}>Disable</button>`
+            : `<button type="button" class="btn btn-sm btn-outline-primary mr-1" onclick="toggleUserStatus('${u.id}', 'Active')">Enable</button>`
           }
+          <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSystemUser('${u.id}')">Delete</button>
         </td>
       </tr>
     `;
   }).join("");
 }
 
+function openEditUserModal(userId) {
+  const user = appState.users.find(item => String(item.id) === String(userId));
+  if (!user) return;
+  document.getElementById('editUserId').value = user.id;
+  document.getElementById('editUserFullName').value = user.name || '';
+  document.getElementById('editUserUsername').value = user.username || '';
+  document.getElementById('editUserRole').value = user.role || 'Staff';
+  document.getElementById('editUserPassword').value = '';
+  document.getElementById('editUserErrorAlert').classList.add('hidden');
+  document.getElementById('editUserModal').classList.remove('hidden');
+}
+function closeEditUserModal() { document.getElementById('editUserModal').classList.add('hidden'); }
+async function handleUpdateUser(event) {
+  event.preventDefault();
+  const id = document.getElementById('editUserId').value;
+  const payload = { name: document.getElementById('editUserFullName').value.trim(), role: document.getElementById('editUserRole').value };
+  const password = document.getElementById('editUserPassword').value;
+  if (password) payload.password = password;
+  try {
+    await window.adminUpdateUser(id, payload);
+    const user = appState.users.find(item => String(item.id) === String(id));
+    if (user) { user.name = payload.name; user.role = payload.role; }
+    closeEditUserModal(); renderAdminUsers();
+  } catch (error) {
+    const alert = document.getElementById('editUserErrorAlert'); alert.textContent = error.message; alert.classList.remove('hidden');
+  }
+}
+async function deleteSystemUser(userId) {
+  const user = appState.users.find(item => String(item.id) === String(userId));
+  if (!user) return;
+  if (!confirm('Permanently delete the account for ' + user.name + '? This cannot be undone. If the account is linked to saved records or drafts, the system will ask you to disable it instead.')) return;
+  try { await window.adminDeleteUser(userId); appState.users = appState.users.filter(item => String(item.id) !== String(userId)); renderAdminUsers(); }
+  catch (error) { alert(error.message); }
+}
 function openAddUserModal() {
   document.getElementById("addUserModal").classList.remove("hidden");
   document.getElementById("addUserErrorAlert").classList.add("hidden");
