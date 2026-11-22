@@ -1064,6 +1064,67 @@ function executeHomeSearch() {
     return;
   }
 
+  // Separate people who share a name by their available identifying details.
+  const identityKey = person => [
+    (person.birthdate || "").trim(),
+    (person.mobile || "").replace(/\\D/g, ""),
+    (person.barangay || "").trim().toLowerCase(),
+    (person.street || "").trim().toLowerCase(),
+    (person.gender || "").trim().toLowerCase()
+  ].join("|");
+  const identityGroups = new Map();
+  matches.forEach(record => {
+    const person = record.client || {};
+    const key = identityKey(person);
+    const groupKey = key.replace(/\\|/g, "") ? key : "record-" + record.glNo;
+    const existing = identityGroups.get(groupKey);
+    if (!existing || new Date(record.dateIso || record.date) > new Date(existing.dateIso || existing.date)) {
+      identityGroups.set(groupKey, record);
+    }
+  });
+
+  if (identityGroups.size > 1 && !appState.homeSearchSelectedIdentity) {
+    const candidates = Array.from(identityGroups.entries()).sort((a, b) =>
+      new Date(b[1].dateIso || b[1].date) - new Date(a[1].dateIso || a[1].date)
+    );
+    resultArea.innerHTML = `
+      <div class="card p-4">
+        <div class="eligibility-header-line">
+          <strong>Multiple clients with a similar name were found</strong>
+          <span class="client-badge-pill returning">${candidates.length} possible matches</span>
+        </div>
+        <p class="text-sm text-muted mb-3">Please verify the client's details before checking the waiting period. Select the correct person below.</p>
+        <div class="duplicate-client-list">
+          ${candidates.map(([key, record], index) => {
+            const person = record.client || {};
+            const details = [
+              person.birthdate ? "Birthdate: " + person.birthdate : (person.age ? "Age: " + person.age : ""),
+              person.mobile ? "Mobile: " + person.mobile : "",
+              [person.street, person.barangay].filter(Boolean).join(", ")
+            ].filter(Boolean).join(" · ");
+            return `
+              <div class="duplicate-client-option">
+                <div>
+                  <strong>${person.fullName || [person.firstName, person.middleName, person.lastName].filter(Boolean).join(" ")}</strong>
+                  <div class="text-xs text-muted">${details || "No additional identifying details recorded"}</div>
+                  <div class="text-xs text-muted">Last transaction: ${record.date} · ${record.service} · GL ${record.glNo}</div>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectHomeSearchIdentity('${encodeURIComponent(key)}')">Select this client</button>
+              </div>`;
+          }).join("")}
+        </div>
+        <div class="eligibility-actions-row mt-3">
+          ${canCreateTxn() ? `<button type="button" class="btn btn-primary" onclick="startNewTxnForClient('${capitalizeWords(query)}', true)">This is a different person — register as new client</button>` : ""}
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (appState.homeSearchSelectedIdentity) {
+    const selected = decodeURIComponent(appState.homeSearchSelectedIdentity);
+    matches = matches.filter(record => identityKey(record.client || {}) === selected);
+  }
+
   // Sort by date descending (latest record first)
   matches.sort((a, b) => new Date(b.dateIso || b.date) - new Date(a.dateIso || a.date));
   const latestRec = matches[0];
@@ -1130,6 +1191,11 @@ function executeHomeSearch() {
       </div>
     `;
   }
+}
+
+function selectHomeSearchIdentity(encodedIdentity) {
+  appState.homeSearchSelectedIdentity = encodedIdentity;
+  executeHomeSearch();
 }
 
 function capitalizeWords(str) {
