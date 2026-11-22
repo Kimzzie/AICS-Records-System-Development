@@ -39,6 +39,26 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatePayload($request);
+
+        // A person already recorded as a client or beneficiary cannot be newly
+        // nominated as a beneficiary again. Compare normalized full names.
+        $beneficiaryName = mb_strtolower(trim($data['beneficiary']['full_name']));
+        $alreadyRecordedAsClient = Client::query()
+            ->whereRaw('LOWER(TRIM(full_name)) = ?', [$beneficiaryName])
+            ->exists();
+        $alreadyRecordedAsBeneficiary = Beneficiary::query()
+            ->whereRaw('LOWER(TRIM(full_name)) = ?', [$beneficiaryName])
+            ->exists();
+
+        if ($alreadyRecordedAsClient || $alreadyRecordedAsBeneficiary) {
+            return response()->json([
+                'message' => 'This person is already listed in AICS records and cannot be registered as a beneficiary. Please verify the beneficiary information and choose an eligible person.',
+                'errors' => [
+                    'beneficiary.full_name' => ['This name already exists in the client or beneficiary records.'],
+                ],
+            ], 422);
+        }
+
         $record = DB::transaction(function () use ($data, $request) {
             $client = Client::create($data['client']);
             $beneficiary = Beneficiary::create($data['beneficiary']);
