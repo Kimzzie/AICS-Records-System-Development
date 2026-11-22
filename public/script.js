@@ -1067,7 +1067,7 @@ function executeHomeSearch() {
   // Separate people who share a name by their available identifying details.
   const identityKey = person => [
     (person.birthdate || "").trim(),
-    (person.mobile || "").replace(/\\D/g, ""),
+    (person.mobile || "").split("").filter(ch => ch >= "0" && ch <= "9").join(""),
     (person.barangay || "").trim().toLowerCase(),
     (person.street || "").trim().toLowerCase(),
     (person.gender || "").trim().toLowerCase()
@@ -1076,7 +1076,7 @@ function executeHomeSearch() {
   matches.forEach(record => {
     const person = record.client || {};
     const key = identityKey(person);
-    const groupKey = key.replace(/\\|/g, "") ? key : "record-" + record.glNo;
+    const groupKey = key.split("|").some(part => part) ? key : "record-" + record.glNo;
     const existing = identityGroups.get(groupKey);
     if (!existing || new Date(record.dateIso || record.date) > new Date(existing.dateIso || existing.date)) {
       identityGroups.set(groupKey, record);
