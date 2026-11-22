@@ -1483,11 +1483,7 @@ function proceedToStep2Form() {
     }
 
     const cDisplay = appState.step1ClientName || "Maria Santos";
-    const statusNote = bName
-      ? `Previous record checked: none found for "${cDisplay}" and "${bName}". Requirements are complete.`
-      : `Previous record checked: none found for "${cDisplay}". Requirements are complete.`;
-    document.getElementById("txnStatusText").textContent = statusNote;
-  }
+}
 
   // Pre-seed family table
   updateFamilyTableFromClient();
@@ -2378,9 +2374,7 @@ function startBrandNewTransaction() {
   document.getElementById("txnStep3").classList.add("hidden");
   document.getElementById("txnStep2").classList.add("hidden");
   document.getElementById("txnStep1").classList.remove("hidden");
-  document.getElementById("txnStatusBar").classList.add("hidden");
-
-  const draftPill = document.getElementById("draftSavedPill");
+const draftPill = document.getElementById("draftSavedPill");
   if (draftPill) draftPill.classList.add("hidden");
   const issueStatus = document.getElementById("glIssueStatus");
   if (issueStatus) {
