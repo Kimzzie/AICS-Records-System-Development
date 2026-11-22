@@ -1969,8 +1969,10 @@ function validateFormFieldsRemaining(options = {}) {
     return field.placeholder || field.name || field.id || "Required field";
   };
 
+  const optionalFieldIds = new Set(["cMiddleName", "cExt", "bMiddleName", "bExt"]);
   const controls = Array.from(formRoot.querySelectorAll("input, select, textarea"))
-    .filter(isVisibleField);
+    .filter(isVisibleField)
+    .filter(field => !optionalFieldIds.has(field.id));
 
   // Every visible editable text/date/number/select/textarea field is required.
   controls.filter(field => !["checkbox", "radio", "button", "submit", "reset", "file"].includes(field.type))
