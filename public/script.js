@@ -1145,29 +1145,24 @@ function executeHomeSearch() {
   const isWaitingPeriodActive = daysRemaining > 0;
 
   if (isWaitingPeriodActive) {
-    // NOT YET ELIGIBLE (Wireframe 2c)
+    // NOT YET ELIGIBLE — compact pink warning matching the supplied reference.
+    const returnDate = formatDateDisplay(eligibleDate);
+    const daysText = daysRemaining === 1 ? "1 day from today" : `${daysRemaining} days from today`;
     resultArea.innerHTML = `
       <div class="card eligibility-card not-eligible p-4">
         <div class="eligibility-header-line">
           <span class="eligibility-person-name">${clientName}</span>
           <span class="client-badge-pill returning">Returning client</span>
         </div>
-        <div class="eligibility-alert-box">
-          <div class="eligibility-alert-icon">!</div>
+        <div class="eligibility-alert-box" style="background:#fcecf1;border:2px solid #d9a3b4;border-radius:9px;padding:14px 16px;color:#202b3c;">
           <div>
             <strong>Not yet eligible: ${waitingMonths}-month waiting period</strong><br>
-            <span class="text-sm">${clientName} was last served on ${latestRec.date}. The waiting period applies to every assistance type with no exception. She can come back on ${formatDateDisplay(eligibleDate)}.</span>
+            <span class="text-sm">Last served ${latestRec.date} · ${latestRec.service} · GL ${latestRec.glNo}. The rule applies to every assistance type with no exception. They can come back on <strong>${returnDate}</strong> (${daysText}).</span>
           </div>
         </div>
-        <div class="waiting-countdown-strip">
-          <span>Last served: <strong>${latestRec.date} · ${latestRec.service} · GL ${latestRec.glNo}</strong></span>
-          <span>Waiting period ends: <strong class="text-danger">${formatDateDisplay(eligibleDate)}</strong></span>
-          <span>Days remaining: <strong class="text-danger">${daysRemaining} days</strong></span>
-        </div>
         <div class="eligibility-actions-row">
-          <button type="button" class="btn btn-outline-secondary" onclick="openRecordDetail('${latestRec.glNo}')">View previous record</button>
           <button type="button" class="btn btn-secondary" disabled title="Unavailable until waiting period passes">Start new transaction</button>
-          <span class="text-xs text-danger ml-2">Unavailable until ${formatDateDisplay(eligibleDate)}</span>
+          <span class="text-xs text-muted ml-2">Unavailable until ${returnDate}</span>
         </div>
       </div>
     `;
