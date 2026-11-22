@@ -1665,7 +1665,7 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
                   </div>
                   <div class="col-md-4 form-group">
                     <label for="cSalary">Monthly salary (PHP)</label>
-                    <input type="number" id="cSalary" class="form-control" placeholder="0.00" step="100" oninput="updateLivePreview(); updateFamilyTableFromClient();">
+                    <input type="text" id="cSalary" class="form-control" placeholder="Whole number only" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateLivePreview(); updateFamilyTableFromClient();">
                   </div>
                 </div>
               </div>
@@ -1779,7 +1779,7 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
                     </div>
                     <div class="col-md-4 form-group">
                       <label for="bSalary">Monthly salary (PHP)</label>
-                      <input type="number" id="bSalary" class="form-control" placeholder="0.00" oninput="updateLivePreview()">
+                      <input type="text" id="bSalary" class="form-control" placeholder="Whole number only" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateLivePreview()">
                     </div>
                   </div>
 
