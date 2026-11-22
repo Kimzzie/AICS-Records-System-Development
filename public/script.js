@@ -595,7 +595,7 @@ const appState = {
 // ==========================================================================
 
 function numberToWords(amount) {
-  const num = parseInt(amount, 10);
+  let num = parseInt(amount, 10);
   if (isNaN(num) || num === 0) return "ZERO PESOS ONLY";
 
   const ones = ["", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN",
@@ -1661,6 +1661,12 @@ function toggleOtherCategoryInput(checked) {
 }
 
 function onAmountChanged(val) {
+  const amountInput = document.getElementById("astAmount");
+  const amount = Number(val);
+  if (Number.isFinite(amount) && amount > 2000) {
+    amountInput.value = "2000";
+    val = "2000";
+  }
   const words = numberToWords(val);
   document.getElementById("astAmountWords").value = words;
 }
@@ -2742,6 +2748,12 @@ function closeEditRecordModal() {
 }
 
 function onEditAmountInput(val) {
+  const amountInput = document.getElementById("editAmount");
+  const amount = Number(val);
+  if (Number.isFinite(amount) && amount > 2000) {
+    amountInput.value = "2000";
+    val = "2000";
+  }
   document.getElementById("editAmountWords").value = numberToWords(val);
 }
 
