@@ -1072,11 +1072,13 @@ function executeHomeSearch() {
     (person.street || "").trim().toLowerCase(),
     (person.gender || "").trim().toLowerCase()
   ].join("|");
+  const identityGroupKey = record => {
+    const key = identityKey(record.client || {});
+    return key.split("|").some(part => part) ? key : "record-" + record.glNo;
+  };
   const identityGroups = new Map();
   matches.forEach(record => {
-    const person = record.client || {};
-    const key = identityKey(person);
-    const groupKey = key.split("|").some(part => part) ? key : "record-" + record.glNo;
+    const groupKey = identityGroupKey(record);
     const existing = identityGroups.get(groupKey);
     if (!existing || new Date(record.dateIso || record.date) > new Date(existing.dateIso || existing.date)) {
       identityGroups.set(groupKey, record);
@@ -1122,7 +1124,7 @@ function executeHomeSearch() {
 
   if (appState.homeSearchSelectedIdentity) {
     const selected = decodeURIComponent(appState.homeSearchSelectedIdentity);
-    matches = matches.filter(record => identityKey(record.client || {}) === selected);
+    matches = matches.filter(record => identityGroupKey(record) === selected);
   }
 
   // Sort by date descending (latest record first)
