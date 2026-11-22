@@ -31,6 +31,35 @@ class TransactionController extends Controller
         return response()->json(['data' => $rows]);
     }
 
+    public function checkBeneficiaryEligibility(Request $request)
+    {
+        $data = $request->validate(['name' => ['required','string','min:2','max:255']]);
+        $name = mb_strtolower(trim($data['name']));
+
+        $matches = AicsTransaction::with(['client','beneficiary','assistanceType'])
+            ->where(function ($query) use ($name) {
+                $query->whereHas('client', fn($q) => $q->whereRaw('LOWER(TRIM(full_name)) = ?', [$name]))
+                    ->orWhereHas('beneficiary', fn($q) => $q->whereRaw('LOWER(TRIM(full_name)) = ?', [$name]));
+            })
+            ->latest('transaction_date')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'eligible' => $matches->isEmpty(),
+            'matches' => $matches->map(fn($record) => [
+                'gl_number' => $record->gl_number,
+                'transaction_date' => $record->transaction_date,
+                'client_name' => $record->client?->full_name,
+                'beneficiary_name' => $record->beneficiary?->full_name,
+                'assistance_type' => $record->assistanceType?->name ?? $record->assistance_provided,
+            ])->values(),
+            'message' => $matches->isEmpty()
+                ? 'No previous record found for this beneficiary.'
+                : 'This beneficiary already appears in previous AICS records and is not eligible.',
+        ]);
+    }
+
     public function show(AicsTransaction $transaction)
     {
         return $transaction->load(['client','beneficiary','familyMembers','assistanceType.requirements','partnerAgency','creator','auditLogs.user']);

@@ -85,6 +85,10 @@
       familyMembers: row.family_members || [], raw: row
     };
   }
+  window.checkBeneficiaryEligibility = async function (name) {
+    return await api('/beneficiaries/eligibility?name=' + encodeURIComponent(name));
+  };
+
   async function loadServerData() {
     const results = await Promise.all([api("/lookups"), api("/transactions?per_page=100")]);
     const lookups = results[0], page = results[1];
