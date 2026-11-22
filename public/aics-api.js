@@ -11,7 +11,7 @@
   const originalExecuteSaveRecord = window.executeSaveRecord;
   const originalSaveRecordCorrection = window.saveRecordCorrection;
 
-  function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
+  function token() { return sessionStorage.getItem(TOKEN_KEY)) || ""; }
   async function api(path, options) {
     options = options || {};
     const headers = Object.assign({ Accept: "application/json" }, options.headers || {});
@@ -150,7 +150,7 @@
       setAuthenticatedUser(appState.currentUser);
       await loadAdminUsers();
     } catch (error) {
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY));
       appState.currentUser = null;
       showAuthView();
       console.warn("AICS session restore failed:", error.message);
@@ -168,7 +168,7 @@
         method: "POST",
         body: JSON.stringify({ username: username, password: password, device_name: "AICS Web" })
       });
-      localStorage.setItem(TOKEN_KEY, result.token);
+      sessionStorage.setItem(TOKEN_KEY), result.token);
       pendingTemporaryPassword = "";
       appState.currentUser = mapUser(result.user);
       // Skip the first-login password screen; open the regular AICS workspace.
@@ -176,7 +176,7 @@
       setAuthenticatedUser(appState.currentUser);
       await loadAdminUsers();
     } catch (error) {
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY));
       showLoginError(error.message);
     } finally {
       if (button) { button.disabled = false; button.textContent = "Log in"; }
@@ -192,7 +192,7 @@
       await api("/auth/password", { method: "PUT", body: JSON.stringify({
         current_password: pendingTemporaryPassword, password: password, password_confirmation: confirmation
       }) });
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY));
       pendingTemporaryPassword = "";
       alert("Password updated. Please log in using your new password.");
       document.getElementById("firstLoginCard").classList.add("hidden");
@@ -232,7 +232,7 @@
   window.handleLogout = async function () {
     // Revoke the server token when possible, then always clear local credentials.
     try { if (token()) await api("/auth/logout", { method: "POST" }); } catch (_) {}
-    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY));
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     pendingTemporaryPassword = "";
     appState.currentUser = null;
@@ -361,7 +361,7 @@
       await api("/auth/password", { method: "PUT", body: JSON.stringify({
         current_password: oldPassword, password: password, password_confirmation: confirmation
       }) });
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY));
       closeChangePasswordModal();
       alert("Password changed. Please log in again.");
       showAuthView();
