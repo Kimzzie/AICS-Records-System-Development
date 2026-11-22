@@ -1887,7 +1887,8 @@ IsEHTZHn/wCaP//Z" alt="LGU Maramag Seal" class="header-seal" onerror="this.src='
                   </div>
                   <div class="col-md-4 form-group">
                     <label for="astAmount">Amount (PHP) *</label>
-                    <input type="number" id="astAmount" class="form-control" value="2000.00" step="100" required oninput="onAmountChanged(this.value); updateLivePreview();">
+                    <input type="number" id="astAmount" class="form-control" value="2000.00" min="0" max="2000" step="100" required oninput="onAmountChanged(this.value); updateLivePreview();">
+                    <small class="text-muted">Maximum allowed: ₱2,000</small>
                   </div>
                   <div class="col-md-4 form-group">
                     <label for="astFundSource">Fund source *</label>
@@ -4816,7 +4817,7 @@ IsEHTZHn/wCaP//Z" alt="Seal" class="doc-seal-img">
               <div class="row">
                 <div class="col-md-6 form-group">
                   <label for="editAmount">Amount (PHP)</label>
-                  <input type="number" id="editAmount" class="form-control" oninput="onEditAmountInput(this.value); trackEditChanges();">
+                  <input type="number" id="editAmount" class="form-control" min="0" max="2000" oninput="onEditAmountInput(this.value); trackEditChanges();">
                   <span class="text-xs text-muted" id="editAmountOriginalHint"></span>
                 </div>
                 <div class="col-md-6 form-group">
