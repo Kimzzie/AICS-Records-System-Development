@@ -193,7 +193,7 @@ class TransactionController extends Controller
             'client_type' => ['nullable','in:New,Returning'],'source' => ['nullable','in:Walk-in,Referral'],
             'target_sector' => ['nullable','string','max:100'],'sub_category' => ['nullable','string','max:255'],
             'assistance_type_id' => ['nullable','integer','exists:assistance_types,id'],
-            'assistance_provided' => ['nullable','string','max:255'],'amount' => ['nullable','numeric','min:0'],
+            'assistance_provided' => ['nullable','string','max:255'],'amount' => ['nullable','numeric','min:0','max:2000'],
             'amount_words' => ['nullable','string','max:255'],'fund_source' => ['nullable','string','max:150'],
             'purpose' => ['nullable','string','max:255'],'partner_agency_name' => ['nullable','string','max:255'],
             'contact_person' => ['nullable','string','max:150'],'contact_number' => ['nullable','string','max:50'],
