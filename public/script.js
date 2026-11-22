@@ -1268,79 +1268,104 @@ function validateStep1Checklist() {
   const btn = document.getElementById("btnContinueToForm");
   const warning = document.getElementById("step1MissingWarning");
   const warningCount = document.getElementById("missingWarningCount");
+  const beneficiaryBlocked = !!appState.step1BeneficiaryBlocked || !!appState.step1BeneficiaryChecking;
 
-  if (unchecked.length === 0) {
-    // Complete (Wireframe 3a)
+  if (unchecked.length === 0 && !beneficiaryBlocked) {
     btn.disabled = false;
     btn.className = "btn btn-continue-active";
     if (warning) warning.classList.add("hidden");
   } else {
-    // Incomplete (Wireframe 3b)
     btn.disabled = true;
     btn.className = "btn btn-continue-disabled";
     if (warning) {
       warning.classList.remove("hidden");
-      const word = unchecked.length === 1 ? "1 required document is missing" : `${unchecked.length} required documents are missing`;
+      const word = beneficiaryBlocked
+        ? (appState.step1BeneficiaryChecking ? "Checking beneficiary eligibility..." : "Beneficiary has a previous AICS record and is not eligible")
+        : (unchecked.length === 1 ? "1 required document is missing" : `${unchecked.length} required documents are missing`);
       if (warningCount) warningCount.textContent = word;
     }
   }
 }
+
+let beneficiaryEligibilityRequestId = 0;
 
 function handleStep1BeneficiaryChange(e) {
   appState.step1BeneficiaryName = e.target.value.trim();
   runStep1BeneficiaryEligibilityCheck();
 }
 
-function runStep1BeneficiaryEligibilityCheck() {
-  const bName = (appState.step1BeneficiaryName || "").toLowerCase();
+async function runStep1BeneficiaryEligibilityCheck() {
+  const bName = (appState.step1BeneficiaryName || "").trim();
   const resultDiv = document.getElementById("step1EligibilityResult");
   if (!resultDiv) return;
 
-  // Check if beneficiary has an active 3-month waiting period in records
-  let match = null;
-  if (bName) {
-    match = appState.records.find(r => {
-      const rc = (r.client.fullName || `${r.client.firstName} ${r.client.lastName}`).toLowerCase();
-      const rb = (r.beneficiary.fullName || `${r.beneficiary.firstName} ${r.beneficiary.lastName}`).toLowerCase();
-      return rc.includes(bName) || rb.includes(bName);
-    });
-  }
+  const requestId = ++beneficiaryEligibilityRequestId;
+  appState.step1BeneficiaryBlocked = false;
+  appState.step1BeneficiaryChecking = false;
 
-  if (match) {
-    const waitingMonths = appState.rules.waitingPeriodMonths || 3;
-    const servedDate = new Date(match.dateIso || match.date);
-    const eligibleDate = new Date(servedDate);
-    eligibleDate.setMonth(eligibleDate.getMonth() + waitingMonths);
-    const diffTime = eligibleDate.getTime() - new Date().getTime();
-    const daysRem = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (daysRem > 0) {
-      resultDiv.innerHTML = `
-        <div class="alert alert-danger" style="border-radius: 8px;">
-          <span class="mr-2">&#9888;</span>
-          <div>
-            <strong>Beneficiary waiting period active</strong><br>
-            <span class="text-xs">Beneficiary was last served on ${match.date} (${match.service}). Eligible again on ${formatDateDisplay(eligibleDate)} (${daysRem} days remaining).</span>
-          </div>
+  if (!bName) {
+    resultDiv.innerHTML = `
+      <div class="precheck-result-box">
+        <div class="precheck-result-icon">&#10003;</div>
+        <div class="precheck-result-texts">
+          <strong>Enter beneficiary name</strong>
+          <span>The system will check previous AICS records before you continue.</span>
         </div>
-      `;
-      return;
-    }
+      </div>`;
+    validateStep1Checklist();
+    return;
   }
 
-  const checkText = bName
-    ? "Both names were checked. The client can continue to the requirements."
-    : "Client eligibility verified. The client can continue to the requirements.";
-
+  appState.step1BeneficiaryChecking = true;
   resultDiv.innerHTML = `
-    <div class="precheck-result-box">
-      <div class="precheck-result-icon">&#10003;</div>
-      <div class="precheck-result-texts">
-        <strong>No previous record found</strong>
-        <span>${checkText}</span>
-      </div>
-    </div>
-  `;
+    <div class="alert alert-info" style="border-radius:8px;">
+      <strong>Checking beneficiary records...</strong>
+      <span class="text-xs">Please wait while the system checks the database.</span>
+    </div>`;
+  validateStep1Checklist();
+
+  try {
+    if (typeof window.checkBeneficiaryEligibility !== "function") {
+      throw new Error("The beneficiary eligibility service is unavailable.");
+    }
+    const result = await window.checkBeneficiaryEligibility(bName);
+    if (requestId !== beneficiaryEligibilityRequestId) return;
+
+    const matches = result.matches || [];
+    appState.step1BeneficiaryBlocked = !result.eligible;
+    appState.step1BeneficiaryChecking = false;
+
+    if (appState.step1BeneficiaryBlocked) {
+      resultDiv.innerHTML = `
+        <div class="alert alert-danger" style="border-radius:8px;">
+          <strong>Beneficiary is not eligible — previous record found</strong>
+          <div class="text-xs mt-1">This person's name already appears in AICS records. Select a different eligible beneficiary.</div>
+          <ul class="text-xs mt-2 mb-0">
+            ${matches.map(item => `<li>GL ${item.gl_number || "—"} · ${item.transaction_date || "Date unavailable"} · ${item.assistance_type || "Assistance record"}</li>`).join("")}
+          </ul>
+        </div>`;
+    } else {
+      resultDiv.innerHTML = `
+        <div class="precheck-result-box">
+          <div class="precheck-result-icon">&#10003;</div>
+          <div class="precheck-result-texts">
+            <strong>No previous record found</strong>
+            <span>The beneficiary is not listed in previous AICS transactions and may continue to the requirements.</span>
+          </div>
+        </div>`;
+    }
+    validateStep1Checklist();
+  } catch (error) {
+    if (requestId !== beneficiaryEligibilityRequestId) return;
+    appState.step1BeneficiaryBlocked = true;
+    appState.step1BeneficiaryChecking = false;
+    resultDiv.innerHTML = `
+      <div class="alert alert-danger" style="border-radius:8px;">
+        <strong>Unable to verify beneficiary eligibility</strong>
+        <span class="text-xs">${error.message || "Please check your connection and try again."} You cannot continue until the database check succeeds.</span>
+      </div>`;
+    validateStep1Checklist();
+  }
 }
 
 function updateStep1Display() {
@@ -1384,6 +1409,13 @@ function startNewTxnFromPreviousRecord(glNo) {
 }
 
 function proceedToStep2Form() {
+  if (appState.step1BeneficiaryBlocked || appState.step1BeneficiaryChecking) {
+    alert(appState.step1BeneficiaryChecking
+      ? "Please wait for the beneficiary eligibility check to finish."
+      : "This beneficiary has a previous AICS record and is not eligible. Please enter a different beneficiary.");
+    validateStep1Checklist();
+    return;
+  }
   appState.currentTxnStep = 2;
   updateStepperUI(2);
 
