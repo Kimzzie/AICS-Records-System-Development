@@ -17,3 +17,6 @@
 .env
 .env.backup
 .phpunit.result.cache
+
+# Visual Studio workspace cache
+.vs/
