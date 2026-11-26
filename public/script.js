@@ -1287,12 +1287,13 @@ function renderStep1Pills() {
   const container = document.getElementById("step1AssistancePills");
   if (!container) return;
   const active = appState.assistanceTypes.filter(a => a.status === "Active");
-  container.innerHTML = active.map((a, i) => `
-    <button type="button" class="btn-pill ${i === 0 ? "active" : ""}" onclick="selectStep1Assistance('${a.type}')">${a.type}</button>
-  `).join("");
+  // Sync state first so the active class matches what proceedToStep2Form will read
   if (active.length > 0 && (!appState.step1AssistanceType || !active.find(a => a.type === appState.step1AssistanceType))) {
     appState.step1AssistanceType = active[0].type;
   }
+  container.innerHTML = active.map(a => `
+    <button type="button" class="btn-pill ${a.type === appState.step1AssistanceType ? "active" : ""}" onclick="selectStep1Assistance('${a.type}')">${a.type}</button>
+  `).join("");
 }
 
 function initStep1Check() {
