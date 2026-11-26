@@ -27,3 +27,8 @@
 
 # AI session workspace files
 /.superpowers/
+/docs/superpowers/
+
+# Dev/AI workspace artifacts
+premium-ui.json
+/public/workspace-refinement-preview.html
