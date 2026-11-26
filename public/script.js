@@ -731,13 +731,13 @@ function setAuthenticatedUser(user) {
   hidePageLoader();
   appState.currentUser = user;
   const issueGlButton = document.getElementById("btnIssueGuaranteeLetter");
-  const canIssueGl = ["Administrator", "Senior staff"].includes(user.role);
+  const canIssueGl = ["Administrator", "Senior staff", "Staff"].includes(user.role);
   if (issueGlButton) issueGlButton.classList.toggle("hidden", !canIssueGl);
   const glStatusText = document.getElementById("glIssueStatusText");
   if (glStatusText) {
     glStatusText.textContent = canIssueGl
       ? "Budget is deducted only after the Guarantee Letter is approved and marked as issued."
-      : "Budget is deducted only after a Senior Staff or Administrator approves and issues the Guarantee Letter. Inform your supervisor to issue it.";
+      : "You do not have permission to issue Guarantee Letters.";
   }
   saveStorage(STORAGE_KEYS.CURRENT_USER, user);
 
@@ -3277,7 +3277,7 @@ function filterRecordsList() {
                 const glIssued = !!r.guaranteeLetterIssuedAt;
                 const glBadge = glIssued
                   ? `<span class="badge badge-success" title="GL issued — budget deducted">Issued</span>`
-                  : `<span class="badge badge-warning" title="Awaiting GL issuance by Senior Staff or Admin">Not issued</span>`;
+                  : `<span class="badge badge-warning" title="Awaiting GL issuance">Not issued</span>`;
                 return `
                 <tr>
                   <td class="font-weight-bold">${r.glNo}</td>
