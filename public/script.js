@@ -1603,9 +1603,8 @@ function proceedToStep2Form() {
   document.getElementById("txnStep4").classList.add("hidden");
   document.getElementById("txnStatusBar").classList.remove("hidden");
 
-  // Generate next sequential GL Number
-  const nextGl = generateNextGlNumber();
-  document.getElementById("formGlNo").value = nextGl;
+  // GL number is assigned by the server on save (atomic, race-condition safe)
+  document.getElementById("formGlNo").value = "Pending...";
 
   // Set today's date formatted
   const todayStr = formatDateDisplay(new Date());
@@ -3162,7 +3161,7 @@ window.restoreTransactionDraftForm = function (formData, draftId) {
   }
 
   const glNumber = document.getElementById("formGlNo");
-  if (glNumber && typeof generateNextGlNumber === "function") glNumber.value = generateNextGlNumber();
+  if (glNumber) glNumber.value = "Pending...";
 
   appState.currentTxnStep = 2;
   updateStepperUI(2);
