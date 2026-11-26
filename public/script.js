@@ -963,8 +963,7 @@ function navigateToTab(tabName) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 
   // Remember the last visited tab so page refresh returns here.
-  // new-transaction is never saved directly — reload goes to home instead.
-  saveStorage(STORAGE_KEYS.LAST_TAB, tabName !== "new-transaction" ? tabName : "home");
+  saveStorage(STORAGE_KEYS.LAST_TAB, tabName);
 
   // Trigger tab-specific refresh
   if (tabName === "home") {
