@@ -1605,7 +1605,7 @@ function proceedToStep2Form() {
   document.getElementById("txnStep2").classList.remove("hidden");
   document.getElementById("txnStep3").classList.add("hidden");
   document.getElementById("txnStep4").classList.add("hidden");
-  document.getElementById("txnStatusBar").classList.remove("hidden");
+  document.getElementById("txnStatusBar")?.classList.remove("hidden");
 
   // GL number is assigned by the server on save (atomic, race-condition safe)
   document.getElementById("formGlNo").value = "Pending...";
