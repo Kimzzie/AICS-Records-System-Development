@@ -1993,6 +1993,21 @@ input::-ms-clear {
     border-bottom: none !important;
     padding: 0 !important;
   }
+
+  /* Monthly report table: allow full width, no horizontal scroll in print */
+  .table-responsive {
+    overflow: visible !important;
+  }
+  .table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 11px;
+  }
+  .table th,
+  .table td {
+    white-space: normal !important;
+    word-break: break-word;
+  }
 }
 
 

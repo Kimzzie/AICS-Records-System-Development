@@ -3651,7 +3651,7 @@ function printMonthlyReport() {
     <div class="print-page">
       <div class="doc-header">
         <div class="doc-header-seal">
-          <img src="assets/maramag-seal.jpg" alt="Seal" class="doc-seal-img">
+          <img src="/logo.png" alt="Seal" class="doc-seal-img">
         </div>
         <div class="doc-header-text">
           <div class="doc-republic">REPUBLIC OF THE PHILIPPINES</div>
