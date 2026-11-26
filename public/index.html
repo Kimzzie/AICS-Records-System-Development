@@ -311,15 +311,24 @@
     <div class="row" id="quarterlyMonthCards">
       <div class="col-12 text-center text-muted p-3">Loading…</div>
     </div>
-    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top flex-wrap gap-3">
-      <div class="text-sm"><span class="text-muted">Quarter allocated:</span> <strong id="quarterlyTotalAllocated">₱0.00</strong></div>
-      <div class="text-sm"><span class="text-muted">Quarter issued:</span> <strong id="quarterlyTotalIssued">₱0.00</strong></div>
-      <div class="text-sm"><span class="text-muted">Quarter remaining:</span> <strong id="quarterlyTotalRemaining">₱0.00</strong></div>
+    <div class="budget-quarter-totals">
+      <div class="bqt-chip">
+        <span class="bqt-chip-label">Quarter allocated</span>
+        <span class="bqt-chip-value" id="quarterlyTotalAllocated">₱0.00</span>
+      </div>
+      <div class="bqt-chip bqt-issued">
+        <span class="bqt-chip-label">Quarter issued</span>
+        <span class="bqt-chip-value" id="quarterlyTotalIssued">₱0.00</span>
+      </div>
+      <div class="bqt-chip bqt-remaining">
+        <span class="bqt-chip-label">Quarter remaining</span>
+        <span class="bqt-chip-value" id="quarterlyTotalRemaining">₱0.00</span>
+      </div>
     </div>
   </div>
 
   <!-- Admin only: Set monthly budget -->
-  <div class="card p-4 mb-4" id="budgetSetupCard">
+  <div class="card p-4 mb-4 budget-setup-card" id="budgetSetupCard">
     <h3 class="card-title mb-1">Set monthly budget</h3>
     <p class="text-muted text-sm mb-3">Set the total budget for the selected month. The amount cannot be reduced below what has already been issued.</p>
     <div class="row align-items-end">
@@ -332,9 +341,28 @@
   <!-- Monthly detail -->
   <h3 class="mb-3" style="font-size:1.05rem;font-weight:600;">Monthly detail — <span id="budgetMonthLabel"></span></h3>
   <div class="row mb-4">
-    <div class="col-md-4 mb-3"><div class="card p-4 h-100"><div class="text-muted text-sm">Monthly budget</div><div class="page-title mt-2" id="budgetTotalDisplay">₱0.00</div></div></div>
-    <div class="col-md-4 mb-3"><div class="card p-4 h-100"><div class="text-muted text-sm">Issued / allocated</div><div class="page-title mt-2 text-danger" id="budgetUsedDisplay">₱0.00</div></div></div>
-    <div class="col-md-4 mb-3"><div class="card p-4 h-100"><div class="text-muted text-sm">Remaining balance</div><div class="page-title mt-2 text-success" id="budgetRemainingDisplay">₱0.00</div></div></div>
+    <div class="col-md-4 mb-3">
+      <div class="budget-stat-tile bst-allocated">
+        <div class="bst-label">Monthly budget</div>
+        <div class="bst-value" id="budgetTotalDisplay">₱0.00</div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="budget-stat-tile bst-issued">
+        <div class="bst-label">Issued / allocated</div>
+        <div class="bst-value" id="budgetUsedDisplay">₱0.00</div>
+        <div class="bst-usage-track">
+          <div class="bst-usage-fill" id="budgetUsageBar" style="width:0%"></div>
+        </div>
+        <div class="bst-usage-pct"><span id="budgetUsagePct">0%</span> of monthly budget used</div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="budget-stat-tile bst-remaining">
+        <div class="bst-label">Remaining balance</div>
+        <div class="bst-value" id="budgetRemainingDisplay">₱0.00</div>
+      </div>
+    </div>
   </div>
   <div class="card p-4">
     <div class="d-flex justify-content-between align-items-center mb-3">

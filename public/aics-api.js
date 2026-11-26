@@ -905,15 +905,19 @@
         isExhausted ? '<span class="badge badge-danger" style="font-size:0.65rem;padding:2px 6px;">Exhausted</span>' : "",
         isLow ? '<span class="badge badge-warning" style="font-size:0.65rem;padding:2px 6px;">Low</span>' : ""
       ].filter(Boolean).join(" ");
+      const cardClass = "budget-month-card" +
+        (isCurrent ? " bmc-active" : "") +
+        (isExhausted ? " bmc-exhausted" : isLow ? " bmc-low" : "");
       return '<div class="col-md-4 mb-3">' +
-        '<div class="card p-3 h-100' + (isCurrent ? " border-primary" : "") + '" style="cursor:pointer;" onclick="selectBudgetMonth(\'' + monthInfo.value + '\')">' +
-        '<div class="d-flex justify-content-between align-items-center mb-2"><span class="font-weight-bold text-sm">' + escapeBudgetText(monthInfo.name) + '</span><span>' + badges + '</span></div>' +
-        '<div class="text-sm text-muted mb-0">Allocated: <strong>' + peso(r.total_budget) + '</strong></div>' +
-        '<div class="text-sm text-muted mb-2">Issued: <strong' + (r.used > 0 ? ' class="text-danger"' : "") + '>' + peso(r.used) + '</strong></div>' +
-        '<div style="height:6px;background:#e9ecef;border-radius:3px;margin-bottom:4px;">' +
-        '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:3px;transition:width 0.3s;"></div></div>' +
-        '<div class="d-flex justify-content-between"><span class="text-xs text-muted">' + Math.round(pct) + '% used</span>' +
-        '<span class="text-xs' + (isExhausted ? ' text-danger' : "") + '">' + peso(r.remaining) + ' left</span></div>' +
+        '<div class="' + cardClass + '" onclick="selectBudgetMonth(\'' + monthInfo.value + '\')">' +
+        '<div class="bmc-header"><span class="bmc-name">' + escapeBudgetText(monthInfo.name) + '</span><span>' + badges + '</span></div>' +
+        '<div class="bmc-amounts">' +
+        '<div>Allocated: <strong>' + peso(r.total_budget) + '</strong></div>' +
+        '<div>Issued: <strong' + (r.used > 0 ? ' style="color:#dc2626"' : "") + '>' + peso(r.used) + '</strong></div>' +
+        '</div>' +
+        '<div class="bmc-bar-track"><div class="bmc-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
+        '<div class="bmc-footer"><span>' + Math.round(pct) + '% used</span>' +
+        '<span' + (isExhausted ? ' style="color:#dc2626"' : "") + '>' + peso(r.remaining) + ' left</span></div>' +
         '</div></div>';
     }).join("");
     document.getElementById("quarterlyTotalAllocated").textContent = peso(totalAllocated);
@@ -955,6 +959,12 @@
       document.getElementById("budgetTotalDisplay").textContent = peso(summary.total_budget);
       document.getElementById("budgetUsedDisplay").textContent = peso(summary.used);
       document.getElementById("budgetRemainingDisplay").textContent = peso(summary.remaining);
+      const usagePct = summary.total_budget > 0
+        ? Math.min(100, Math.round((summary.used / summary.total_budget) * 100)) : 0;
+      const usageBar = document.getElementById("budgetUsageBar");
+      const usagePctEl = document.getElementById("budgetUsagePct");
+      if (usageBar) usageBar.style.width = usagePct + "%";
+      if (usagePctEl) usagePctEl.textContent = usagePct + "%";
       document.getElementById("budgetIssuedCount").textContent = (summary.issued_count || 0) + " issued";
       const body = document.getElementById("budgetTransactionsBody");
       body.innerHTML = (summary.transactions || []).length ? summary.transactions.map(t =>

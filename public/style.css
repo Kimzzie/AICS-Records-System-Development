@@ -2998,3 +2998,170 @@ textarea.form-control.is-invalid {
   .step1-info-sep { width: 100%; height: 1px; margin: 0; }
   .step1-info-client { min-width: auto; }
 }
+
+/* ==========================================================================
+   BUDGET DASHBOARD — Redesigned
+   ========================================================================== */
+
+/* Month cards inside the quarterly overview */
+.budget-month-card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-light);
+  border-left: 4px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  cursor: pointer;
+  height: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.budget-month-card:hover {
+  border-color: var(--accent-blue);
+  border-left-color: var(--accent-blue);
+  box-shadow: 0 2px 10px rgba(27,85,176,0.10);
+}
+.budget-month-card.bmc-active {
+  border-left-color: var(--primary-navy);
+  background: #f4f7ff;
+}
+.budget-month-card.bmc-exhausted { border-left-color: #dc2626; }
+.budget-month-card.bmc-low       { border-left-color: #d97706; }
+.bmc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.bmc-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.bmc-amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.bmc-bar-track {
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.bmc-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.bmc-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Quarter total chips */
+.budget-quarter-totals {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+.bqt-chip {
+  flex: 1;
+  min-width: 140px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bqt-chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+.bqt-chip-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.bqt-chip.bqt-issued .bqt-chip-value  { color: #dc2626; }
+.bqt-chip.bqt-remaining .bqt-chip-value { color: #16a34a; }
+
+/* Monthly stat tiles */
+.budget-stat-tile {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 20px 20px 16px;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.budget-stat-tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.bst-allocated::before { background: var(--primary-navy); }
+.bst-issued::before    { background: #dc2626; }
+.bst-remaining::before { background: #16a34a; }
+.bst-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.bst-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.bst-issued .bst-value    { color: #dc2626; }
+.bst-remaining .bst-value { color: #16a34a; }
+.bst-usage-track {
+  height: 5px;
+  background: #e9ecef;
+  border-radius: 3px;
+  margin-top: 14px;
+  overflow: hidden;
+}
+.bst-usage-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #dc2626;
+  transition: width 0.4s;
+}
+.bst-usage-pct {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* Set monthly budget card — admin-only action panel */
+.budget-setup-card {
+  border-left: 4px solid var(--accent-blue);
+}
+
+@media (max-width: 600px) {
+  .budget-quarter-totals { gap: 8px; }
+  .bqt-chip { min-width: 100%; }
+  .bst-value { font-size: 22px; }
+}
