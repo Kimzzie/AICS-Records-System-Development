@@ -38,7 +38,7 @@ class BudgetController extends Controller
 
     public function issueGuaranteeLetter(Request $request, AicsTransaction $transaction)
     {
-        abort_unless(in_array($request->user()->role, ['Administrator','Senior staff'], true), 403);
+        abort_unless(in_array($request->user()->role, ['Administrator','Senior staff','Staff'], true), 403);
         return DB::transaction(function () use ($request, $transaction) {
             $locked = AicsTransaction::whereKey($transaction->id)->lockForUpdate()->firstOrFail();
             if ($locked->guarantee_letter_issued_at) {
