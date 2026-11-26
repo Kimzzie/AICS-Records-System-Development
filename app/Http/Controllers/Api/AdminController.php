@@ -11,6 +11,7 @@ use App\Models\Signatory;
 use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
@@ -27,25 +28,64 @@ class AdminController extends Controller
     public function updateUser(Request $request, User $user)
     {
         $data=$request->validate(['name'=>['sometimes','string','max:255'],'role'=>['sometimes',Rule::in(['Viewer','Staff','Senior staff','Administrator'])],'status'=>['sometimes',Rule::in(['Active','Disabled'])],'password'=>['sometimes','string','min:10']]);
-        if(($data['status']??null)==='Disabled' && $user->role==='Administrator' && User::where('role','Administrator')->where('status','Active')->count()<=1) return response()->json(['message'=>'The last active administrator cannot be disabled.'],422);
-        $user->fill($data)->save();
-        return response()->json(['data'=>$user->only('id','name','username','role','status')]);
+        return DB::transaction(function () use ($data, $user) {
+            $activeAdministratorIds = collect();
+
+            if (array_key_exists('role', $data) || array_key_exists('status', $data)) {
+                $activeAdministratorIds = $this->lockActiveAdministratorIds();
+            }
+
+            $targetIsActiveAdministrator = $activeAdministratorIds->contains($user->id);
+            $removingActiveAdministrator = $targetIsActiveAdministrator
+                && (
+                    ($data['role'] ?? 'Administrator') !== 'Administrator'
+                    || ($data['status'] ?? 'Active') !== 'Active'
+                );
+
+            if ($removingActiveAdministrator && $activeAdministratorIds->count() <= 1) {
+                return response()->json([
+                    'message' => 'The last active administrator cannot be disabled or demoted.',
+                ], 422);
+            }
+
+            if (array_key_exists('password', $data)) {
+                $data['must_change_password'] = true;
+            }
+
+            $user->fill($data)->save();
+
+            if (($data['status'] ?? null) === 'Disabled' || array_key_exists('password', $data)) {
+                $user->tokens()->delete();
+            }
+
+            return response()->json(['data' => $user->only('id', 'name', 'username', 'role', 'status')]);
+        });
     }
 
     public function deleteUser(Request $request, User $user)
     {
-        if ($request->user()->id === $user->id) {
-            return response()->json(['message' => 'You cannot delete your own account.'], 422);
-        }
-        if ($user->role === 'Administrator' && $user->status === 'Active'
-            && User::where('role', 'Administrator')->where('status', 'Active')->count() <= 1) {
-            return response()->json(['message' => 'The last active administrator cannot be deleted.'], 422);
-        }
-        if ($user->transactions()->exists() || $user->transactionDrafts()->exists()) {
-            return response()->json(['message' => 'This user is linked to saved transactions or drafts. Disable the account instead to preserve records.'], 422);
-        }
-        $user->delete();
-        return response()->json(['message' => 'User deleted.']);
+        return DB::transaction(function () use ($request, $user) {
+            if ($request->user()->id === $user->id) {
+                return response()->json(['message' => 'You cannot delete your own account.'], 422);
+            }
+
+            $activeAdministratorIds = $this->lockActiveAdministratorIds();
+
+            if (
+                $activeAdministratorIds->contains($user->id)
+                && $activeAdministratorIds->count() <= 1
+            ) {
+                return response()->json(['message' => 'The last active administrator cannot be deleted.'], 422);
+            }
+
+            if ($user->transactions()->exists() || $user->transactionDrafts()->exists()) {
+                return response()->json(['message' => 'This user is linked to saved transactions or drafts. Disable the account instead to preserve records.'], 422);
+            }
+
+            $user->delete();
+
+            return response()->json(['message' => 'User deleted.']);
+        });
     }
 
     public function agencies() { return PartnerAgency::withCount('transactions')->orderBy('name')->get(); }
@@ -106,5 +146,19 @@ class AdminController extends Controller
         $data=$request->validate(['waitingPeriodMonths'=>['sometimes','integer','min:0','max:24'],'glValidityDays'=>['sometimes','integer','min:1','max:365'],'logoutTimeoutMinutes'=>['sometimes','integer','min:1','max:1440'],'keepDraftsDays'=>['sometimes','integer','min:1','max:365']]);
         foreach($data as $key=>$value) SystemSetting::updateOrCreate(['key'=>$key],['value'=>['value'=>$value]]);
         return response()->json(['message'=>'Settings saved.','data'=>$data]);
+    }
+
+    /**
+     * Lock active Administrator rows in a consistent order before changing the set.
+     * Call this helper only inside a database transaction.
+     */
+    private function lockActiveAdministratorIds()
+    {
+        return User::query()
+            ->where('role', 'Administrator')
+            ->where('status', 'Active')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->pluck('id');
     }
 }

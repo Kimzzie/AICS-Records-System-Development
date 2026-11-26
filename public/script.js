@@ -20,7 +20,8 @@ const STORAGE_KEYS = {
   BARANGAYS: "aics_barangays_db",
   SIGNATORIES: "aics_signatories_db",
   RULES: "aics_rules_db",
-  IS_ONLINE: "aics_is_online"
+  IS_ONLINE: "aics_is_online",
+  LAST_TAB: "aics_last_tab"
 };
 
 // Initial Seed Data matching prototype screenshots
@@ -530,24 +531,8 @@ const SEED_DATA = {
       source: "Walk-in"
     }
   ],
-  drafts: [
-    {
-      id: "draft-1",
-      clientName: "Maria Santos",
-      beneficiaryName: "Juan Santos",
-      assistance: "Medical",
-      lastSaved: "Today, 10:42 AM",
-      formData: null // Will resume into form
-    },
-    {
-      id: "draft-2",
-      clientName: "Pedro Reyes",
-      beneficiaryName: "Ana Reyes",
-      assistance: "Burial",
-      lastSaved: "Yesterday, 3:15 PM",
-      formData: null
-    }
-  ]
+  // Drafts are loaded from the authenticated Laravel API; never seed local draft records.
+  drafts: []
 };
 
 // Storage helper methods
@@ -574,19 +559,22 @@ const appState = {
   currentUser: null,
   users: loadStorage(STORAGE_KEYS.USERS, SEED_DATA.users),
   records: loadStorage(STORAGE_KEYS.RECORDS, SEED_DATA.records),
-  drafts: loadStorage(STORAGE_KEYS.DRAFTS, SEED_DATA.drafts),
+  drafts: [],
+  currentDraftId: null,
   agencies: loadStorage(STORAGE_KEYS.AGENCIES, SEED_DATA.agencies),
   barangays: loadStorage(STORAGE_KEYS.BARANGAYS, SEED_DATA.barangays),
   signatories: loadStorage(STORAGE_KEYS.SIGNATORIES, SEED_DATA.signatories),
   rules: loadStorage(STORAGE_KEYS.RULES, SEED_DATA.rules),
   assistanceTypes: loadStorage(STORAGE_KEYS.ASSISTANCE_TYPES, SEED_DATA.assistanceTypes),
-  isOnline: loadStorage(STORAGE_KEYS.IS_ONLINE, true),
+  isOnline: navigator.onLine,
   currentTxnStep: 1,
   activePreviewDoc: "gis",
   activeReviewDoc: "gis",
   activeStep4Doc: "gl",
   currentEditingRecordGl: null,
   step1AssistanceType: "Medical",
+  step1IdentityStatus: "no_match",
+  step1PreviousRecordCount: 0,
   lastSavedRecord: null
 };
 
@@ -665,7 +653,15 @@ function initAuth() {
   showAuthView();
 }
 
+function hidePageLoader() {
+  const loader = document.getElementById("pageLoader");
+  if (!loader || loader.classList.contains("hidden")) return;
+  loader.classList.add("fade-out");
+  setTimeout(() => loader.classList.add("hidden"), 380);
+}
+
 function showAuthView() {
+  hidePageLoader();
   document.getElementById("authContainer").classList.remove("hidden");
   document.getElementById("appContainer").classList.add("hidden");
   document.getElementById("loginCard").classList.remove("hidden");
@@ -677,7 +673,7 @@ function showAuthView() {
 
 // Role-Based Access Control (RBAC) Permissions Matrix
 const ROLE_PERMISSIONS = {
-  "Viewer": ["home", "records"],
+  "Viewer": ["assistance-verification"],
   "Staff": ["home", "new-transaction", "records", "budget"],
   "Senior staff": ["home", "new-transaction", "records", "monthly-report", "budget"],
   "Administrator": ["home", "new-transaction", "records", "monthly-report", "admin", "budget"]
@@ -690,6 +686,11 @@ function applyRbacNavigation(role) {
   const navBudget = document.getElementById("navBudget");
   const navMonthly = document.getElementById("navMonthlyReport");
   const navAdmin = document.getElementById("navAdmin");
+  const navAssistanceVerification = document.getElementById("navAssistanceVerification");
+  const onlineStatusWrap = document.getElementById("onlineStatusWrap");
+  const draftsMenuItem = document.getElementById("draftsMenuItem");
+  const offlineBanner = document.getElementById("offlineBanner");
+  const syncToast = document.getElementById("syncToast");
 
   const allowedTabs = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS["Staff"];
 
@@ -699,17 +700,45 @@ function applyRbacNavigation(role) {
   if (navBudget) navBudget.classList.toggle("hidden", !allowedTabs.includes("budget"));
   if (navMonthly) navMonthly.classList.toggle("hidden", !allowedTabs.includes("monthly-report"));
   if (navAdmin) navAdmin.classList.toggle("hidden", !allowedTabs.includes("admin"));
+  if (navAssistanceVerification) {
+    navAssistanceVerification.classList.toggle("hidden", !allowedTabs.includes("assistance-verification"));
+  }
+  if (onlineStatusWrap) onlineStatusWrap.classList.toggle("hidden", role === "Viewer");
+  if (draftsMenuItem) draftsMenuItem.classList.toggle("hidden", role === "Viewer");
+  // Banner and toast visibility are managed exclusively by updateOnlineStatusUI().
+  // Viewers never see them; for all other roles, online state decides.
+  if (role === "Viewer") {
+    if (offlineBanner) offlineBanner.classList.add("hidden");
+    if (syncToast) syncToast.classList.add("hidden");
+  }
 }
 
 function canCreateTxn() {
+  if (!appState.isOnline) return false;
   const role = appState.currentUser ? appState.currentUser.role : "Staff";
   return role !== "Viewer";
 }
 
+function offlineWriteGuard(action) {
+  if (!appState.isOnline) {
+    alert("You are offline. " + (action || "This action") + " requires a live connection to the server.");
+    return false;
+  }
+  return true;
+}
+
 function setAuthenticatedUser(user) {
+  hidePageLoader();
   appState.currentUser = user;
   const issueGlButton = document.getElementById("btnIssueGuaranteeLetter");
-  if (issueGlButton) issueGlButton.classList.toggle("hidden", !["Administrator", "Senior staff"].includes(user.role));
+  const canIssueGl = ["Administrator", "Senior staff"].includes(user.role);
+  if (issueGlButton) issueGlButton.classList.toggle("hidden", !canIssueGl);
+  const glStatusText = document.getElementById("glIssueStatusText");
+  if (glStatusText) {
+    glStatusText.textContent = canIssueGl
+      ? "Budget is deducted only after the Guarantee Letter is approved and marked as issued."
+      : "Budget is deducted only after a Senior Staff or Administrator approves and issues the Guarantee Letter. Inform your supervisor to issue it.";
+  }
   saveStorage(STORAGE_KEYS.CURRENT_USER, user);
 
   document.getElementById("authContainer").classList.add("hidden");
@@ -727,8 +756,18 @@ function setAuthenticatedUser(user) {
   // Update drafts count badge
   updateDraftsCountBadge();
 
-  // Load Home Tab
-  navigateToTab("home");
+  // Sync the offline banner / pill with actual network state now that the
+  // user is authenticated and the role-based nav is settled.
+  updateOnlineStatusUI();
+
+  // Restore the last visited tab (default: home).
+  // Validate it against this user's allowed tabs so cross-role LAST_TAB persists safely.
+  const savedTab = loadStorage(STORAGE_KEYS.LAST_TAB, "home");
+  const userAllowedTabs = ROLE_PERMISSIONS[user.role] || ROLE_PERMISSIONS["Staff"];
+  const restoreTab = (savedTab && savedTab !== "new-transaction" && userAllowedTabs.includes(savedTab))
+    ? savedTab
+    : (userAllowedTabs[0] || "home");
+  navigateToTab(restoreTab);
 }
 
 function handleLogin(e) {
@@ -902,6 +941,10 @@ function navigateToTab(tabName) {
     tabName = allowedTabs[0] || "home";
   }
 
+  if (tabName !== "assistance-verification" && typeof window.clearViewerAssistanceVerificationUI === "function") {
+    window.clearViewerAssistanceVerificationUI();
+  }
+
   // Update header nav tabs active state
   document.querySelectorAll(".header-nav .nav-tab").forEach(tab => {
     tab.classList.toggle("active", tab.getAttribute("data-tab") === tabName);
@@ -919,6 +962,10 @@ function navigateToTab(tabName) {
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 
+  // Remember the last visited tab so page refresh returns here.
+  // new-transaction is never saved directly — reload goes to home instead.
+  saveStorage(STORAGE_KEYS.LAST_TAB, tabName !== "new-transaction" ? tabName : "home");
+
   // Trigger tab-specific refresh
   if (tabName === "home") {
     const homeSearch = document.getElementById("homeSearchInput");
@@ -929,12 +976,18 @@ function navigateToTab(tabName) {
     }
     renderRecentTransactions();
   } else if (tabName === "new-transaction") {
+    if (!appState.isOnline) {
+      alert("You are offline. Creating a new transaction requires a live connection to the server.");
+      navigateToTab("home");
+      return;
+    }
     if (appState.currentTxnStep === 1) {
       initStep1Check();
     }
   } else if (tabName === "records") {
-    populateAgencyFilterDropdown();
-    filterRecordsList();
+    showRecordsSkeleton();
+    // Brief yield so skeleton paints before potentially-blocking filter runs
+    setTimeout(() => { populateAgencyFilterDropdown(); filterRecordsList(); }, 60);
   } else if (tabName === "monthly-report") {
     handleMonthlyReportTabOpen();
   } else if (tabName === "budget") {
@@ -949,9 +1002,8 @@ function navigateToTab(tabName) {
 // ==========================================================================
 
 function toggleOnlineStatus() {
-  appState.isOnline = !appState.isOnline;
-  saveStorage(STORAGE_KEYS.IS_ONLINE, appState.isOnline);
-  updateOnlineStatusUI();
+  // Network status is determined by the browser, not by manual toggle.
+  // This function is intentionally left as a no-op.
 }
 
 function updateOnlineStatusUI() {
@@ -959,6 +1011,12 @@ function updateOnlineStatusUI() {
   const txt = document.getElementById("onlineStatusText");
   const banner = document.getElementById("offlineBanner");
   const toast = document.getElementById("syncToast");
+
+  if (appState.currentUser && appState.currentUser.role === "Viewer") {
+    banner?.classList.add("hidden");
+    toast?.classList.add("hidden");
+    return;
+  }
 
   if (appState.isOnline) {
     btn.className = "status-badge status-online";
@@ -1222,9 +1280,22 @@ function renderRecentTransactions() {
 // 7. NEW TRANSACTION WIZARD (STEP 1: PRE-CHECK & REQUIREMENTS CHECKLIST)
 // ==========================================================================
 
+function renderStep1Pills() {
+  const container = document.getElementById("step1AssistancePills");
+  if (!container) return;
+  const active = appState.assistanceTypes.filter(a => a.status === "Active");
+  container.innerHTML = active.map((a, i) => `
+    <button type="button" class="btn-pill ${i === 0 ? "active" : ""}" onclick="selectStep1Assistance('${a.type}')">${a.type}</button>
+  `).join("");
+  if (active.length > 0 && (!appState.step1AssistanceType || !active.find(a => a.type === appState.step1AssistanceType))) {
+    appState.step1AssistanceType = active[0].type;
+  }
+}
+
 function initStep1Check() {
+  renderStep1Pills();
   updateStep1Display();
-  renderAssistanceChecklist(appState.step1AssistanceType || "Medical");
+  renderAssistanceChecklist(appState.step1AssistanceType || (appState.assistanceTypes.find(a => a.status === "Active") || {}).type || "Medical");
   populateBarangayOptions();
   populateAgencyDropdowns();
 }
@@ -1239,8 +1310,9 @@ function selectStep1Assistance(astType) {
 
 function renderAssistanceChecklist(astType) {
   const container = document.getElementById("checklistContainer");
-  const found = appState.assistanceTypes.find(a => a.type.toLowerCase().startsWith(astType.toLowerCase()))
-    || appState.assistanceTypes[0];
+  const activeTypes = appState.assistanceTypes.filter(a => a.status === "Active");
+  const found = activeTypes.find(a => a.type.toLowerCase().startsWith(astType.toLowerCase()))
+    || activeTypes[0];
 
   container.innerHTML = found.requirements.map((item, idx) => `
     <label class="checklist-item-check" id="chkItemLabel-${idx}">
@@ -1275,7 +1347,7 @@ function validateStep1Checklist() {
     if (warning) {
       warning.classList.remove("hidden");
       const word = beneficiaryBlocked
-        ? (appState.step1BeneficiaryChecking ? "Checking beneficiary eligibility..." : "Beneficiary has a previous AICS record and is not eligible")
+        ? (appState.step1BeneficiaryChecking ? "Checking beneficiary eligibility..." : "Beneficiary has an AICS record within the configured waiting period and is not yet eligible")
         : (unchecked.length === 1 ? "1 required document is missing" : `${unchecked.length} required documents are missing`);
       if (warningCount) warningCount.textContent = word;
     }
@@ -1289,16 +1361,87 @@ function handleStep1BeneficiaryChange(e) {
   runStep1BeneficiaryEligibilityCheck();
 }
 
+async function loadStep1FullHistory(page = 1) {
+  const container = document.getElementById("step1FullHistory");
+  const name = (appState.step1BeneficiaryName || "").trim();
+  if (!container || !name || typeof window.getBeneficiaryHistory !== "function") return;
+
+  container.classList.remove("hidden");
+  container.textContent = "Loading full history...";
+  try {
+    const response = await window.getBeneficiaryHistory(name, page, 10);
+    const records = response.data || [];
+    const pagination = response.pagination || {};
+    const panel = document.createElement("div");
+    panel.className = "card p-3";
+
+    const heading = document.createElement("strong");
+    heading.textContent = "Full AICS history";
+    const count = document.createElement("p");
+    count.className = "text-xs text-muted mb-2";
+    const first = records.length ? ((pagination.current_page - 1) * pagination.per_page) + 1 : 0;
+    const last = ((pagination.current_page - 1) * pagination.per_page) + records.length;
+    count.textContent = "Showing " + first + "–" + last + " of " + (pagination.total || 0) + " matching records";
+
+    const list = document.createElement("ul");
+    list.className = "text-xs mb-2 pl-3";
+    records.forEach(record => {
+      const item = document.createElement("li");
+      item.textContent = [
+        "GL " + (record.gl_number || "-"),
+        record.transaction_date || "Date unavailable",
+        record.assistance_type || "Assistance record",
+        "Requester: " + (record.client_name || "Not recorded"),
+        "Beneficiary: " + (record.beneficiary_name || "Not recorded")
+      ].join(" | ");
+      list.appendChild(item);
+    });
+
+    const navigation = document.createElement("div");
+    navigation.className = "d-flex align-items-center justify-content-between flex-wrap";
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.className = "btn btn-sm btn-outline-secondary";
+    previous.textContent = "Previous";
+    previous.disabled = !pagination.current_page || pagination.current_page <= 1;
+    previous.addEventListener("click", () => loadStep1FullHistory(pagination.current_page - 1));
+
+    const pageLabel = document.createElement("span");
+    pageLabel.className = "text-xs text-muted";
+    pageLabel.textContent = "Page " + (pagination.current_page || 1) + " of " + (pagination.last_page || 1);
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "btn btn-sm btn-outline-secondary";
+    next.textContent = "Next";
+    next.disabled = !pagination.last_page || pagination.current_page >= pagination.last_page;
+    next.addEventListener("click", () => loadStep1FullHistory(pagination.current_page + 1));
+
+    navigation.append(previous, pageLabel, next);
+    panel.append(heading, count, list, navigation);
+    container.replaceChildren(panel);
+  } catch (error) {
+    container.textContent = "Unable to load full history: " + (error.message || "Please try again.");
+  }
+}
+
 async function runStep1BeneficiaryEligibilityCheck() {
   const bName = (appState.step1BeneficiaryName || "").trim();
   const resultDiv = document.getElementById("step1EligibilityResult");
   if (!resultDiv) return;
 
   const requestId = ++beneficiaryEligibilityRequestId;
+  const historyContainer = document.getElementById("step1FullHistory");
+  if (historyContainer) {
+    historyContainer.classList.add("hidden");
+    historyContainer.replaceChildren();
+  }
   appState.step1BeneficiaryBlocked = false;
   appState.step1BeneficiaryChecking = false;
 
   if (!bName) {
+    appState.step1IdentityStatus = "no_match";
+    appState.step1PreviousRecordCount = 0;
     resultDiv.innerHTML = `
       <div class="precheck-result-box">
         <div class="precheck-result-icon">&#10003;</div>
@@ -1327,19 +1470,13 @@ async function runStep1BeneficiaryEligibilityCheck() {
     if (requestId !== beneficiaryEligibilityRequestId) return;
 
     const matches = result.matches || [];
+    appState.step1IdentityStatus = result.identity_status || (matches.length ? "verification_required" : "no_match");
+    appState.step1PreviousRecordCount = Number(result.history_total ?? matches.length);
     appState.step1BeneficiaryBlocked = !result.eligible;
     appState.step1BeneficiaryChecking = false;
 
-    if (appState.step1BeneficiaryBlocked) {
-      resultDiv.innerHTML = `
-        <div class="alert alert-danger" style="border-radius:8px;">
-          <strong>Beneficiary is not eligible — previous record found</strong>
-          <div class="text-xs mt-1">This person's name already appears in AICS records. Select a different eligible beneficiary.</div>
-          <ul class="text-xs mt-2 mb-0">
-            ${matches.map(item => `<li>GL ${item.gl_number || "—"} · ${item.transaction_date || "Date unavailable"} · ${item.assistance_type || "Assistance record"}</li>`).join("")}
-          </ul>
-        </div>`;
-    } else {
+    const waitingMonths = Number(result.waiting_period_months || 3);
+    if (matches.length === 0) {
       resultDiv.innerHTML = `
         <div class="precheck-result-box">
           <div class="precheck-result-icon">&#10003;</div>
@@ -1348,6 +1485,51 @@ async function runStep1BeneficiaryEligibilityCheck() {
             <span>The beneficiary is not listed in previous AICS transactions and may continue to the requirements.</span>
           </div>
         </div>`;
+    } else {
+      const isBlocked = appState.step1BeneficiaryBlocked;
+      const identityStatus = result.identity_status || "verification_required";
+      const needsStaffVerification = ["verification_required", "possible_name_match"].includes(identityStatus);
+      const alert = document.createElement("div");
+      alert.className = isBlocked ? "alert alert-danger" : (needsStaffVerification ? "alert alert-warning" : "alert alert-success");
+      alert.style.borderRadius = "8px";
+
+      const heading = document.createElement("strong");
+      heading.textContent = isBlocked
+        ? "Verified person is not eligible yet"
+        : needsStaffVerification
+          ? "Possible duplicate name — staff verification needed"
+          : "Previous AICS record found — waiting period completed";
+
+      const detail = document.createElement("div");
+      detail.className = "text-xs mt-1";
+      detail.textContent = result.message || (isBlocked
+        ? "A verified person has a record within the configured waiting period."
+        : needsStaffVerification
+          ? "A name match is not enough to confirm identity. Check the person's date of birth and history before deciding."
+          : "The previous transaction is outside the configured " + waitingMonths + "-month waiting period.");
+
+      const list = document.createElement("ul");
+      list.className = "text-xs mt-2 mb-0";
+      matches.forEach(item => {
+        const entry = document.createElement("li");
+        entry.textContent = [
+          "GL " + (item.gl_number || "-"),
+          item.transaction_date || "Date unavailable",
+          item.assistance_type || "Assistance record"
+        ].join(" | ");
+        list.appendChild(entry);
+      });
+
+      alert.append(heading, detail, list);
+      if (result.has_more_history) {
+        const viewAll = document.createElement("button");
+        viewAll.type = "button";
+        viewAll.className = "btn btn-sm btn-outline-secondary mt-2";
+        viewAll.textContent = "View all " + result.history_total + " matching records";
+        viewAll.addEventListener("click", () => loadStep1FullHistory(1));
+        alert.appendChild(viewAll);
+      }
+      resultDiv.replaceChildren(alert);
     }
     validateStep1Checklist();
   } catch (error) {
@@ -1370,16 +1552,16 @@ function updateStep1Display() {
   const requirementsColumn = document.getElementById("step1RequirementsColumn");
   const clientName = appState.step1ClientName || "";
 
-  if (cEl) cEl.textContent = clientName;
-  if (bInput) bInput.value = appState.step1BeneficiaryName || "";
-
-  // Match the PR #15 layout: client details stay in the left column,
-  // and the requirements checklist stays in the right column.
-  if (previousRecordColumn) previousRecordColumn.classList.remove("hidden");
-  if (requirementsColumn) {
-    requirementsColumn.classList.remove("col-md-4", "col-md-12");
-    requirementsColumn.classList.add("col-md-8");
+  if (cEl) {
+    if (clientName) {
+      cEl.textContent = clientName;
+      cEl.style.color = "";
+    } else {
+      cEl.textContent = "Not selected";
+      cEl.style.color = "#999";
+    }
   }
+  if (bInput) bInput.value = appState.step1BeneficiaryName || "";
 
   runStep1BeneficiaryEligibilityCheck();
 }
@@ -1404,6 +1586,7 @@ function startNewTxnFromPreviousRecord(glNo) {
 }
 
 function proceedToStep2Form() {
+  if (!offlineWriteGuard("Creating a new transaction")) return;
   if (appState.step1BeneficiaryBlocked || appState.step1BeneficiaryChecking) {
     alert(appState.step1BeneficiaryChecking
       ? "Please wait for the beneficiary eligibility check to finish."
@@ -1444,7 +1627,7 @@ function proceedToStep2Form() {
     applyReturningClientDetails(appState.prefillFromRecord);
   } else {
     // Populate client name from step 1
-    const step1Name = appState.step1ClientName || (document.getElementById("step1ClientDisplay") ? document.getElementById("step1ClientDisplay").textContent.trim() : "Maria Santos");
+    const step1Name = appState.step1ClientName || (document.getElementById("step1ClientDisplay") ? document.getElementById("step1ClientDisplay").textContent.trim() : "");
     if (step1Name) {
       const parts = step1Name.split(" ");
       if (parts.length > 1) {
@@ -1482,8 +1665,18 @@ function proceedToStep2Form() {
       }
     }
 
-    const cDisplay = appState.step1ClientName || "Maria Santos";
+    const cDisplay = appState.step1ClientName || "";
 }
+
+  // Auto-select the assistance type chosen in Step 1 and fill defaults
+  const step1Ast = appState.step1AssistanceType;
+  if (step1Ast) {
+    const matchingRadio = document.querySelector(`input[name="finAssistance"][value="${step1Ast}"]`);
+    if (matchingRadio) {
+      matchingRadio.checked = true;
+      autoFillAssistanceDefaults(step1Ast);
+    }
+  }
 
   // Pre-seed family table
   updateFamilyTableFromClient();
@@ -1656,6 +1849,24 @@ function toggleOtherCategoryInput(checked) {
   document.getElementById("otherCategoryWrap").classList.toggle("hidden", !checked);
 }
 
+const ASSISTANCE_DEFAULTS = {
+  "Medical":       { provided: "Medical assistance",                              purpose: "Medicine / Hospital bill" },
+  "Burial":        { provided: "Burial assistance",                               purpose: "Funeral / Burial expenses" },
+  "Fire incident": { provided: "Financial assistance for fire incident victim",   purpose: "Food / Clothing / Basic necessities" },
+  "Transportation":{ provided: "Transportation assistance",                       purpose: "Transportation fare" },
+  "Food":          { provided: "Food assistance",                                 purpose: "Food / Basic necessities" },
+  "Cash":          { provided: "Financial assistance for other support services", purpose: "Other support services" }
+};
+
+function autoFillAssistanceDefaults(value) {
+  const defaults = ASSISTANCE_DEFAULTS[value];
+  if (!defaults) return;
+  const provided = document.getElementById("astProvided");
+  const purpose  = document.getElementById("astPurpose");
+  if (provided) provided.value = defaults.provided;
+  if (purpose)  purpose.value  = defaults.purpose;
+}
+
 function onAmountChanged(val) {
   const amountInput = document.getElementById("astAmount");
   const amount = Number(val);
@@ -1696,18 +1907,38 @@ function updateFamilyTableFromClient() {
   if (!tbody) return;
 
   if (tbody.children.length === 0) {
-    // Start with the client only. Additional household members are added by the user.
-    tbody.innerHTML = `
-      <tr class="family-client-row">
-        <td><input type="text" class="form-control form-control-sm" value="${clientFullName}" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="Client" readonly></td>
-        <td><input type="number" class="form-control form-control-sm" value="${clientAge}" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${clientCivil}" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${clientOcc}" oninput="updateLivePreview()"></td>
-        <td><input type="text" class="form-control form-control-sm" value="${clientSal}" oninput="updateLivePreview()"></td>
-        <td class="text-center text-muted">—</td>
-      </tr>
-    `;
+    // Build the first row with DOM APIs so stored names/values cannot become HTML.
+    const row = document.createElement("tr");
+    row.className = "family-client-row";
+    const fields = [
+      { value: clientFullName, type: "text" },
+      { value: "Client", type: "text", readOnly: true },
+      { value: clientAge, type: "number" },
+      { value: clientCivil, type: "text" },
+      { value: clientOcc, type: "text" },
+      { value: clientSal, type: "text" }
+    ];
+
+    fields.forEach(config => {
+      const cell = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = config.type;
+      input.className = "form-control form-control-sm";
+      input.value = config.value;
+      if (config.readOnly) {
+        input.readOnly = true;
+      } else {
+        input.addEventListener("input", updateLivePreview);
+      }
+      cell.appendChild(input);
+      row.appendChild(cell);
+    });
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "text-center text-muted";
+    actionCell.textContent = "—";
+    row.appendChild(actionCell);
+    tbody.appendChild(row);
   } else {
     // Update first row client name
     const firstRowInputs = tbody.children[0].querySelectorAll("input");
@@ -1946,6 +2177,11 @@ function setText(elementId, val) {
   if (el) el.textContent = val || "";
 }
 
+function isFormFieldRequired(field, labelText, optionalFieldIds = new Set(), labelHasAsterisk = false) {
+  if (!field || optionalFieldIds.has(field.id)) return false;
+  return field.required === true || labelHasAsterisk || String(labelText || "").includes("*");
+}
+
 function validateFormFieldsRemaining(options = {}) {
   const stepPanel = document.getElementById("txnStep2");
   const attempted = options.showErrors === true
@@ -1974,9 +2210,16 @@ function validateFormFieldsRemaining(options = {}) {
   const optionalFieldIds = new Set(["cMiddleName", "cExt", "bMiddleName", "bExt"]);
   const controls = Array.from(formRoot.querySelectorAll("input, select, textarea"))
     .filter(isVisibleField)
-    .filter(field => !optionalFieldIds.has(field.id));
+    .filter(field => {
+      // Preserve group controls for their dedicated validators. Other fields are
+      // required only when the markup says required or the associated label has *.
+      if (["checkbox", "radio"].includes(field.type)) return true;
+      const label = field.id ? formRoot.querySelector(`label[for="${field.id}"]`) : field.closest("label");
+      const labelHasAsterisk = !!label && label.textContent.includes("*");
+      return isFormFieldRequired(field, labelFor(field), optionalFieldIds, labelHasAsterisk);
+    });
 
-  // Every visible editable text/date/number/select/textarea field is required.
+  // Validate text/date/number/select/textarea values only when marked required.
   controls.filter(field => !["checkbox", "radio", "button", "submit", "reset", "file"].includes(field.type))
     .forEach(field => {
       const value = String(field.value || "").trim();
@@ -2016,14 +2259,12 @@ function validateFormFieldsRemaining(options = {}) {
     }
   });
 
-  // At least one target sector and one financial assistance type must be selected.
-  ["targetSector", "finAssistance"].forEach(name => {
-    const group = controls.filter(f => f.type === "checkbox" && f.name === name);
-    if (group.length && !group.some(f => f.checked)) {
-      missing.push({ id: group[0].id, label: name === "targetSector" ? "Category > Target sector" : "Assistance > Financial assistance", field: group[0] });
-    }
-  });
-
+  // At least one target sector must be selected. Financial assistance is a required
+  // radio group and is validated together with the other radio groups above.
+  const targetSectors = controls.filter(f => f.type === "checkbox" && f.name === "targetSector");
+  if (targetSectors.length && !targetSectors.some(f => f.checked)) {
+    missing.push({ id: targetSectors[0].id, label: "Category > Target sector", field: targetSectors[0] });
+  }
   const summary = document.getElementById("formValidationSummary");
   const summaryTitle = document.getElementById("formValidationTitle");
   const summaryDetail = document.getElementById("formValidationDetail");
@@ -2085,28 +2326,81 @@ function updateSectionStatus(secId, isDone) {
   }
 }
 
+function setTransactionPreviewVisible(isVisible) {
+  const workspace = document.getElementById("transactionWorkspace");
+  const toggle = document.getElementById("transactionPreviewToggle");
+  if (!workspace || !toggle) return;
+
+  workspace.classList.toggle("preview-collapsed", !isVisible);
+  toggle.textContent = isVisible ? "Hide preview" : "Show preview";
+  toggle.setAttribute("aria-expanded", String(isVisible));
+}
+
+function toggleTransactionPreview() {
+  const workspace = document.getElementById("transactionWorkspace");
+  if (!workspace) return;
+
+  const isCurrentlyVisible = !workspace.classList.contains("preview-collapsed");
+  appState.transactionPreviewUserAdjusted = true;
+  setTransactionPreviewVisible(!isCurrentlyVisible);
+}
+
+function handleTransactionWorkspaceResize() {
+  if (appState.transactionPreviewUserAdjusted) return;
+  setTransactionPreviewVisible(window.innerWidth > 1100);
+}
+
+function initTransactionWorkspace() {
+  appState.transactionPreviewUserAdjusted = false;
+  setTransactionPreviewVisible(window.innerWidth > 1100);
+  window.addEventListener("resize", handleTransactionWorkspaceResize, { passive: true });
+  window.addEventListener("scroll", updateActiveFormSection, { passive: true });
+}
+
+function setActiveFormSection(sectionId) {
+  document.querySelectorAll(".section-tracker-item").forEach(item => {
+    const isActive = item.dataset.sec === sectionId;
+    item.classList.toggle("active", isActive);
+
+    const button = item.querySelector("button");
+    if (!button) return;
+    if (isActive) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+function updateActiveFormSection() {
+  const stepPanel = document.getElementById("txnStep2");
+  if (stepPanel && stepPanel.classList.contains("hidden")) return;
+
+  const sections = ["sec1", "sec2", "sec3", "sec4", "sec5", "sec6", "sec7", "sec8"];
+  const readingLine = 140;
+  let activeSection = sections[0];
+
+  for (const sectionId of sections) {
+    const section = document.getElementById(sectionId);
+    if (!section) continue;
+
+    if (section.getBoundingClientRect().top <= readingLine) {
+      activeSection = sectionId;
+    } else {
+      break;
+    }
+  }
+
+  const documentRoot = document.documentElement;
+  const isAtDocumentEnd = window.scrollY + window.innerHeight >= documentRoot.scrollHeight - 2;
+  if (isAtDocumentEnd) activeSection = sections[sections.length - 1];
+
+  setActiveFormSection(activeSection);
+}
+
 function scrollToSection(secId) {
   const el = document.getElementById(secId);
   if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
-
-function onFormScroll() {
-  const container = document.getElementById("formInputsScrollArea");
-  const sections = ["sec1", "sec2", "sec3", "sec4", "sec5", "sec6", "sec7", "sec8"];
-
-  for (const s of sections) {
-    const el = document.getElementById(s);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      if (rect.top >= 50 && rect.top <= 250) {
-        document.querySelectorAll(".section-tracker-item").forEach(item => {
-          item.classList.toggle("active", item.getAttribute("data-sec") === s);
-        });
-        break;
-      }
-    }
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    el.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+    setActiveFormSection(secId);
   }
 }
 
@@ -2138,6 +2432,26 @@ function proceedToStep3Review() {
 
   document.getElementById("txnStep2").classList.add("hidden");
   document.getElementById("txnStep3").classList.remove("hidden");
+
+  const previousCheck = document.getElementById("reviewPreviousRecordCheck");
+  const previousIcon = document.getElementById("reviewPreviousRecordIcon");
+  const previousStatus = document.getElementById("reviewPreviousRecordStatus");
+  const identityStatus = appState.step1IdentityStatus || "no_match";
+  if (previousCheck && previousStatus) {
+    if (["verification_required", "possible_name_match"].includes(identityStatus)) {
+      previousCheck.className = "checklist-status-item alert alert-warning";
+      if (previousIcon) previousIcon.textContent = "!";
+      previousStatus.textContent = "Possible name match found (" + appState.step1PreviousRecordCount + "). Verify date of birth; both requester and beneficiary are checked again when saving.";
+    } else if (identityStatus === "confirmed_match") {
+      previousCheck.className = "checklist-status-item alert alert-success";
+      if (previousIcon) previousIcon.textContent = "✓";
+      previousStatus.textContent = "Verified previous record found. The configured waiting-period result will be enforced when saving.";
+    } else {
+      previousCheck.className = "checklist-status-item success";
+      if (previousIcon) previousIcon.textContent = "✓";
+      previousStatus.textContent = "No beneficiary name match found. Both requester and beneficiary will be checked again when saving.";
+    }
+  }
 
   // Check for duplicate name warnings (Wireframe 5b)
   const full = `${cFirst} ${cLast}`.toLowerCase();
@@ -2363,6 +2677,7 @@ function startBrandNewTransaction() {
 
   appState.prefillFromRecord = null;
   appState.lastSavedRecord = null;
+  appState.currentDraftId = null;
   appState.step1ClientName = "";
   appState.step1BeneficiaryName = "";
   appState.step1AssistanceType = "";
@@ -2397,110 +2712,497 @@ function restartTxnCheck() {
 // 11. DRAFTS & AUTO-SAVE (Wireframe 10b, 10a, 11e)
 // ==========================================================================
 
-function saveCurrentDraftManually() {
-  const cLast = document.getElementById("cLastName").value.trim();
-  const cFirst = document.getElementById("cFirstName").value.trim();
-  const clientName = `${cFirst} ${cLast}`.trim() || "Untitled Client";
-  const bName = document.getElementById("bFirstName").value.trim() || clientName;
-  const ast = document.getElementById("astProvided").value || "Medical";
+let pendingDraftDeleteId = null;
+let pendingDraftDeleteTrigger = null;
+let pendingDraftAction = null;
+let pendingDraftActionTrigger = null;
+let draftsModalTrigger = null;
 
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  const draftObj = {
-    id: `draft-${Date.now()}`,
-    clientName: clientName,
-    beneficiaryName: bName,
-    assistance: ast,
-    lastSaved: `Today, ${timeStr}`,
-    timestamp: Date.now()
-  };
-
-  appState.drafts.unshift(draftObj);
-  saveStorage(STORAGE_KEYS.DRAFTS, appState.drafts);
-  updateDraftsCountBadge();
-
-  // Show toast & pill badge
-  const pill = document.getElementById("draftSavedPill");
-  pill.classList.remove("hidden");
-  document.getElementById("draftSavedTime").textContent = timeStr;
-
-  setTimeout(() => {
-    pill.classList.add("hidden");
-  }, 4000);
-}
-
-function confirmDiscardDraft() {
-  if (confirm("Discard changes? Any unsaved edits will be lost and you will be returned to Step 1.")) {
-    startBrandNewTransaction();
+function setDraftStatus(message, kind = "muted") {
+  const status = document.getElementById("draftsStatus");
+  if (status) {
+    status.className = "text-xs " + (kind === "danger" ? "text-danger" : kind === "success" ? "text-success" : "text-muted");
+    status.textContent = message || "";
   }
 }
 
+function setDraftActionMessage(message, kind = "muted") {
+  const status = document.getElementById("draftActionMessage");
+  if (status) {
+    status.className = "text-xs " + (kind === "danger" ? "text-danger" : kind === "success" ? "text-success" : "text-muted");
+    status.textContent = message || "";
+  }
+}
+
+function formatDraftSavedTime(value) {
+  if (!value) return "Time unavailable";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Time unavailable"
+    : date.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
+}
+
+async function saveCurrentDraftManually() {
+  const button = document.querySelector("[onclick='saveCurrentDraftManually()']");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Saving...";
+  }
+  setDraftActionMessage("Saving this draft to your account...");
+
+  try {
+    if (typeof window.saveTransactionDraft !== "function") {
+      throw new Error("The draft service is unavailable. Please refresh and try again.");
+    }
+
+    const draft = await window.saveTransactionDraft();
+    const pill = document.getElementById("draftSavedPill");
+    const pillTime = document.getElementById("draftSavedTime");
+    if (pill) pill.classList.remove("hidden");
+    if (pillTime) pillTime.textContent = formatDraftSavedTime(draft.last_saved_at);
+    setDraftActionMessage("Draft saved to your account.", "success");
+
+    if (pill) setTimeout(() => pill.classList.add("hidden"), 5000);
+  } catch (error) {
+    setDraftActionMessage("Draft could not be saved. Check the required information and try again.", "danger");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Save draft";
+    }
+  }
+}
+
+function confirmDiscardDraft() {
+  showDraftActionConfirmation({
+    type: "discard",
+    title: "Discard current changes?",
+    message: "Clear this transaction form? Unsaved changes will be lost. Any previously saved draft will remain in My drafts.",
+    confirmLabel: "Clear form"
+  });
+}
+
 function updateDraftsCountBadge() {
-  const count = appState.drafts.length;
-  document.getElementById("draftsCountBadge").textContent = count;
+  const badge = document.getElementById("draftsCountBadge");
+  if (badge) badge.textContent = String(Array.isArray(appState.drafts) ? appState.drafts.length : 0);
 }
+window.updateDraftsCountBadge = updateDraftsCountBadge;
 
-function openDraftsModal() {
-  document.getElementById("userDropdown").classList.add("hidden");
+async function openDraftsModal() {
+  draftsModalTrigger = document.activeElement || document.getElementById("draftsMenuItem");
+  document.getElementById("userDropdown")?.classList.add("hidden");
   const modal = document.getElementById("draftsModal");
+  if (!modal) return;
   modal.classList.remove("hidden");
-  renderDraftsTable();
+  document.querySelector("#draftsModal .modal-close")?.focus();
+
+  const tbody = document.getElementById("draftsTableBody");
+  if (tbody) {
+    tbody.replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "text-center text-muted p-4";
+    cell.textContent = "Loading your drafts...";
+    row.appendChild(cell);
+    tbody.appendChild(row);
+  }
+  setDraftStatus("Loading drafts for your account...");
+
+  try {
+    if (typeof window.loadTransactionDrafts !== "function") {
+      throw new Error("The draft service is unavailable. Please refresh and try again.");
+    }
+    await window.loadTransactionDrafts();
+    renderDraftsTable();
+    setDraftStatus(appState.drafts.length ? "Only you can view and manage these drafts." : "");
+  } catch (error) {
+    // Do not render an earlier in-memory list when the server cannot confirm
+    // the current account's draft ownership and availability.
+    appState.drafts = [];
+    updateDraftsCountBadge();
+    renderDraftsTable();
+    setDraftStatus("Your drafts could not be loaded. Check your connection and try again.", "danger");
+  }
 }
 
-function closeDraftsModal() {
-  document.getElementById("draftsModal").classList.add("hidden");
+function closeDraftsModal(restoreFocus = true) {
+  document.getElementById("draftsModal")?.classList.add("hidden");
+  const trigger = draftsModalTrigger;
+  draftsModalTrigger = null;
+  if (restoreFocus && trigger && trigger.isConnected && typeof trigger.focus === "function") {
+    trigger.focus();
+  }
 }
 
 function renderDraftsTable() {
   const tbody = document.getElementById("draftsTableBody");
   if (!tbody) return;
 
-  if (appState.drafts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4">No drafts saved on this computer.</td></tr>`;
+  tbody.replaceChildren();
+  const drafts = Array.isArray(appState.drafts) ? appState.drafts : [];
+  if (drafts.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "text-center text-muted p-4";
+    cell.textContent = "No drafts saved. When you save an unfinished transaction, it will appear here.";
+    row.appendChild(cell);
+    tbody.appendChild(row);
     return;
   }
 
-  tbody.innerHTML = appState.drafts.map(d => `
-    <tr>
-      <td class="font-weight-bold">${d.clientName}</td>
-      <td>${d.beneficiaryName}</td>
-      <td><span class="badge badge-subtle">${d.assistance}</span></td>
-      <td class="text-muted text-xs">${d.lastSaved}</td>
-      <td class="text-right">
-        <button type="button" class="btn btn-sm btn-outline-primary mr-1" onclick="resumeDraft('${d.id}')">Resume</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary text-danger" onclick="deleteDraft('${d.id}')">Delete</button>
-      </td>
-    </tr>
-  `).join("");
+  drafts.forEach(draft => {
+    const row = document.createElement("tr");
+    const clientCell = document.createElement("td");
+    clientCell.className = "font-weight-bold";
+    clientCell.textContent = draft.clientName || "Untitled client";
+
+    const beneficiaryCell = document.createElement("td");
+    beneficiaryCell.textContent = draft.beneficiaryName || "Not specified";
+
+    const assistanceCell = document.createElement("td");
+    const assistanceBadge = document.createElement("span");
+    assistanceBadge.className = "badge badge-subtle";
+    assistanceBadge.textContent = draft.assistance || "Unspecified";
+    assistanceCell.appendChild(assistanceBadge);
+
+    const savedCell = document.createElement("td");
+    savedCell.className = "text-muted text-xs";
+    savedCell.textContent = formatDraftSavedTime(draft.lastSavedAt);
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "text-right";
+
+    const resumeButton = document.createElement("button");
+    resumeButton.type = "button";
+    resumeButton.className = "btn btn-sm btn-outline-primary mr-1";
+    resumeButton.textContent = "Resume";
+    resumeButton.addEventListener("click", () => resumeDraft(draft.id, resumeButton));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "btn btn-sm btn-outline-secondary text-danger";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", () => deleteDraft(draft.id, deleteButton));
+
+    actionCell.append(resumeButton, deleteButton);
+    row.append(clientCell, beneficiaryCell, assistanceCell, savedCell, actionCell);
+    tbody.appendChild(row);
+  });
 }
 
-function resumeDraft(draftId) {
-  closeDraftsModal();
-  const d = appState.drafts.find(x => x.id === draftId);
-  if (d) {
+async function resumeDraft(draftId, trigger = null) {
+  const id = String(draftId);
+  if (appState.currentTxnStep === 2 && String(appState.currentDraftId || "") !== id) {
+    showDraftActionConfirmation({
+      type: "resume",
+      draftId: id,
+      title: "Replace the open transaction?",
+      message: "Opening this draft will replace the transaction form currently open. Any unsaved changes in that form will be lost.",
+      confirmLabel: "Resume draft"
+    }, trigger);
+    return;
+  }
+
+  await openDraftInForm(id);
+}
+
+async function openDraftInForm(id) {
+  setDraftStatus("Loading the full transaction draft...");
+  try {
+    if (typeof window.getTransactionDraft !== "function") {
+      throw new Error("Draft service unavailable");
+    }
+    const response = await window.getTransactionDraft(id);
+    const draft = response && response.data;
+    if (!draft || !draft.form_data) {
+      throw new Error("Draft form data unavailable");
+    }
+
     navigateToTab("new-transaction");
-    document.getElementById("step1ClientName").value = d.clientName;
-    proceedToStep2Form();
+    if (typeof window.restoreTransactionDraftForm !== "function") {
+      throw new Error("Form restore unavailable");
+    }
+    window.restoreTransactionDraftForm(draft.form_data, draft.id);
+    closeDraftsModal(false);
+    setDraftActionMessage("Draft resumed. Save draft again to keep any further changes.", "success");
+    document.getElementById("cLastName")?.focus();
+  } catch (_) {
+    setDraftStatus("This draft could not be opened. It may have expired or your access may have changed.", "danger");
   }
 }
 
-function deleteDraft(draftId) {
-  appState.drafts = appState.drafts.filter(x => x.id !== draftId);
-  saveStorage(STORAGE_KEYS.DRAFTS, appState.drafts);
-  updateDraftsCountBadge();
-  renderDraftsTable();
+function showDraftActionConfirmation(action, trigger = null) {
+  pendingDraftAction = action;
+  pendingDraftActionTrigger = trigger || document.activeElement || null;
+
+  const title = document.getElementById("draftActionConfirmTitle");
+  const message = document.getElementById("draftActionConfirmText");
+  const confirmButton = document.getElementById("confirmDraftActionButton");
+  if (title) title.textContent = action.title;
+  if (message) message.textContent = action.message;
+  if (confirmButton) confirmButton.textContent = action.confirmLabel || "Continue";
+
+  document.getElementById("draftActionConfirmModal")?.classList.remove("hidden");
+  document.getElementById("cancelDraftActionButton")?.focus();
 }
 
-function removeDraftByClient(name) {
-  appState.drafts = appState.drafts.filter(d => d.clientName.toLowerCase() !== name.toLowerCase());
-  saveStorage(STORAGE_KEYS.DRAFTS, appState.drafts);
+function cancelDraftAction() {
+  pendingDraftAction = null;
+  document.getElementById("draftActionConfirmModal")?.classList.add("hidden");
+  const trigger = pendingDraftActionTrigger;
+  pendingDraftActionTrigger = null;
+  if (trigger && trigger.isConnected && typeof trigger.focus === "function") trigger.focus();
+}
+
+async function confirmDraftAction() {
+  const action = pendingDraftAction;
+  pendingDraftAction = null;
+  document.getElementById("draftActionConfirmModal")?.classList.add("hidden");
+  pendingDraftActionTrigger = null;
+  if (!action) return;
+
+  if (action.type === "resume") {
+    await openDraftInForm(String(action.draftId));
+    return;
+  }
+
+  if (action.type === "discard") {
+    startBrandNewTransaction();
+    setDraftActionMessage("The transaction form was cleared. Any previously saved draft remains in My drafts.", "success");
+    document.getElementById("step1ClientName")?.focus();
+  }
+}
+
+function deleteDraft(draftId, trigger = null) {
+  pendingDraftDeleteId = String(draftId);
+  pendingDraftDeleteTrigger = trigger || document.activeElement || null;
+  const draft = appState.drafts.find(item => String(item.id) === pendingDraftDeleteId);
+  const detail = document.getElementById("deleteDraftConfirmText");
+  const error = document.getElementById("deleteDraftError");
+  if (detail) {
+    detail.textContent = "Delete the unfinished transaction for " + (draft?.clientName || "this client") + "? This cannot be undone.";
+  }
+  if (error) error.textContent = "";
+  document.getElementById("deleteDraftConfirmModal")?.classList.remove("hidden");
+  document.getElementById("cancelDeleteDraftButton")?.focus();
+}
+
+function cancelDeleteDraft(restoreFocus = true) {
+  pendingDraftDeleteId = null;
+  document.getElementById("deleteDraftConfirmModal")?.classList.add("hidden");
+  if (restoreFocus) {
+    const trigger = pendingDraftDeleteTrigger;
+    pendingDraftDeleteTrigger = null;
+    if (trigger && trigger.isConnected && typeof trigger.focus === "function") trigger.focus();
+  } else {
+    pendingDraftDeleteTrigger = null;
+  }
+}
+
+async function confirmDeleteDraft() {
+  if (!pendingDraftDeleteId) return;
+  const button = document.getElementById("confirmDeleteDraftButton");
+  const error = document.getElementById("deleteDraftError");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Deleting...";
+  }
+  if (error) error.textContent = "";
+
+  try {
+    if (typeof window.deleteTransactionDraft !== "function") {
+      throw new Error("Draft service unavailable");
+    }
+    await window.deleteTransactionDraft(pendingDraftDeleteId);
+    cancelDeleteDraft(false);
+    renderDraftsTable();
+    setDraftStatus("Draft deleted.", "success");
+    document.getElementById("draftsModalTitle")?.focus();
+  } catch (_) {
+    // Keep the destructive dialog open until the server confirms deletion.
+    if (error) error.textContent = "The draft could not be deleted. Check your connection and try again.";
+    document.getElementById("cancelDeleteDraftButton")?.focus();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Delete draft";
+    }
+  }
+}
+
+document.addEventListener("keydown", event => {
+  const deleteDialog = document.getElementById("deleteDraftConfirmModal");
+  const actionDialog = document.getElementById("draftActionConfirmModal");
+  const draftsDialog = document.getElementById("draftsModal");
+  const activeDialog = deleteDialog && !deleteDialog.classList.contains("hidden") ? deleteDialog
+    : actionDialog && !actionDialog.classList.contains("hidden") ? actionDialog
+      : draftsDialog && !draftsDialog.classList.contains("hidden") ? draftsDialog
+        : null;
+
+  if (event.key === "Escape") {
+    if (activeDialog === deleteDialog) cancelDeleteDraft();
+    else if (activeDialog === actionDialog) cancelDraftAction();
+    else if (activeDialog === draftsDialog) closeDraftsModal();
+    return;
+  }
+
+  if (event.key !== "Tab" || !activeDialog) return;
+  const focusable = Array.from(activeDialog.querySelectorAll(
+    'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(item => !item.closest(".hidden") && !item.disabled);
+  if (!focusable.length) return;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !activeDialog.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !activeDialog.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
+function removeDraftByClient() {
+  const currentId = appState.currentDraftId;
+  if (currentId === null || currentId === undefined) return;
+
+  // The API consumed this exact creator-owned draft in the transaction that
+  // created the official AICS record. Never remove another draft by client name.
+  appState.drafts = appState.drafts.filter(draft => String(draft.id) !== String(currentId));
+  appState.currentDraftId = null;
   updateDraftsCountBadge();
 }
+
+window.restoreEmergencyDraft = function (formData) {
+  if (!formData) return;
+  try {
+    // Emergency drafts don't have a server ID, so pass -1 (not persisted yet)
+    window.restoreTransactionDraftForm(formData, null);
+    // Clear the draft ID since this isn't a server-persisted draft
+    appState.currentDraftId = null;
+  } catch (err) {
+    alert("Could not restore the saved form: " + err.message);
+  }
+};
+
+window.restoreTransactionDraftForm = function (formData, draftId) {
+  if (!formData || formData.schema_version !== 1 || !formData.transaction || !formData.fields) {
+    throw new Error("This draft uses an unsupported or incomplete form format.");
+  }
+
+  startBrandNewTransaction();
+  appState.currentDraftId = Number(draftId);
+  appState.step1ClientName = formData.step1?.client_name || formData.transaction.client?.full_name || "";
+  appState.step1BeneficiaryName = formData.step1?.beneficiary_name || formData.transaction.beneficiary?.full_name || "";
+  appState.step1AssistanceType = formData.step1?.assistance_type || "Medical";
+  appState.prefillFromRecord = null;
+  appState.currentTransaction = formData.transaction;
+
+  const step2 = document.getElementById("txnStep2");
+  if (!step2) throw new Error("The transaction form is unavailable.");
+
+  Object.entries(formData.fields).forEach(([fieldId, stored]) => {
+    if (fieldId === "formGlNo") return;
+    const field = document.getElementById(fieldId);
+    if (!field || !stored || typeof stored !== "object") return;
+    if (field.type === "checkbox" || field.type === "radio") {
+      field.checked = Boolean(stored.checked);
+    } else if (Object.prototype.hasOwnProperty.call(stored, "value")) {
+      field.value = stored.value ?? "";
+    }
+  });
+
+  const controls = Array.from(step2.querySelectorAll("input[name]"));
+  Object.entries(formData.groups || {}).forEach(([name, selected]) => {
+    controls.filter(control => control.name === name).forEach(control => {
+      if (control.type === "radio") {
+        control.checked = control.value === selected;
+      } else if (control.type === "checkbox") {
+        const selectedValues = Array.isArray(selected) ? selected.map(String) : [];
+        control.checked = selectedValues.includes(String(control.value));
+      }
+    });
+  });
+
+  const sameAsClient = document.getElementById("beneficiarySameAsClientCheckbox");
+  if (sameAsClient) toggleBeneficiarySameAsClient(sameAsClient.checked);
+
+  const tbody = document.getElementById("familyTableBody");
+  if (tbody) {
+    tbody.replaceChildren();
+    updateFamilyTableFromClient();
+    const members = Array.isArray(formData.transaction.family_members) ? formData.transaction.family_members : [];
+    const applyMember = (row, member) => {
+      const inputs = row.querySelectorAll("input");
+      const values = [
+        member.full_name || "",
+        member.relationship || "",
+        member.age === null || member.age === undefined ? "" : String(member.age),
+        member.civil_status || "",
+        member.occupation || "",
+        member.monthly_salary === null || member.monthly_salary === undefined ? "" : String(member.monthly_salary)
+      ];
+      values.forEach((value, index) => {
+        if (inputs[index]) inputs[index].value = value;
+      });
+    };
+
+    if (members.length > 0) {
+      const firstRow = tbody.children[0];
+      if (firstRow) applyMember(firstRow, members[0]);
+      members.slice(1).forEach(member => {
+        addFamilyRow();
+        const row = tbody.children[tbody.children.length - 1];
+        if (row) applyMember(row, member);
+      });
+    }
+  }
+
+  const glNumber = document.getElementById("formGlNo");
+  if (glNumber && typeof generateNextGlNumber === "function") glNumber.value = generateNextGlNumber();
+
+  appState.currentTxnStep = 2;
+  updateStepperUI(2);
+  document.getElementById("txnStep1")?.classList.add("hidden");
+  step2.classList.remove("hidden");
+  document.getElementById("txnStep3")?.classList.add("hidden");
+  document.getElementById("txnStep4")?.classList.add("hidden");
+  document.getElementById("txnStatusBar")?.classList.remove("hidden");
+  document.getElementById("draftSavedPill")?.classList.add("hidden");
+
+  if (document.getElementById("cBirthdate")?.value) calculateClientAge();
+  if (document.getElementById("bBirthdate")?.value) calculateBeneficiaryAge();
+  const caseSummary = document.getElementById("caseSummaryText");
+  if (caseSummary) updateCaseSummaryCount(caseSummary);
+  updateLivePreview();
+  validateFormFieldsRemaining();
+
+  const clientDisplay = document.getElementById("step1ClientDisplay");
+  const beneficiaryInput = document.getElementById("step1BeneficiaryInput");
+  if (clientDisplay) clientDisplay.textContent = appState.step1ClientName;
+  if (beneficiaryInput) beneficiaryInput.value = appState.step1BeneficiaryName;
+};
 
 // ==========================================================================
 // 12. TAB 3: RECORDS LISTING & EDIT/CORRECT ENGINE (Wireframe 6a, 6d, 7a, 7b)
 // ==========================================================================
+
+function showRecordsSkeleton() {
+  const container = document.getElementById("recordsGroupContainer");
+  if (!container) return;
+  const skeletonRow = (widths) => `<tr class="skeleton-row">${widths.map(w =>
+    `<td><span class="skeleton skeleton-cell" style="width:${w}"></span></td>`
+  ).join("")}</tr>`;
+  const cols = ["60px","90px","130px","110px","80px","70px","55px","60px","90px","70px","60px"];
+  container.innerHTML = `<div class="year-group">
+    <div class="year-group-header"><span class="skeleton skeleton-cell" style="width:60px;height:16px"></span></div>
+    <div class="table-responsive"><table class="table mb-0"><tbody>
+      ${Array(5).fill(0).map(() => skeletonRow(cols)).join("")}
+    </tbody></table></div></div>`;
+}
 
 function filterRecordsList() {
   const search = document.getElementById("recordsSearchName")?.value.trim().toLowerCase() || "";
@@ -2558,13 +3260,19 @@ function filterRecordsList() {
                 <th>Barangay</th>
                 <th>Service</th>
                 <th>Amount</th>
+                <th>Approval</th>
                 <th>Partner agency</th>
                 <th>Worker</th>
                 <th class="text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              ${list.map(r => `
+              ${list.map(r => {
+                const glIssued = !!r.guaranteeLetterIssuedAt;
+                const glBadge = glIssued
+                  ? `<span class="badge badge-success" title="GL issued — budget deducted">Issued</span>`
+                  : `<span class="badge badge-warning" title="Awaiting GL issuance by Senior Staff or Admin">Not issued</span>`;
+                return `
                 <tr>
                   <td class="font-weight-bold">${r.glNo}</td>
                   <td>${r.date}</td>
@@ -2573,14 +3281,15 @@ function filterRecordsList() {
                   <td>${r.client.barangay}</td>
                   <td><span class="badge badge-subtle">${r.service}</span></td>
                   <td class="font-weight-bold">${formatCurrency(r.amount)}</td>
+                  <td>${glBadge}</td>
                   <td>${r.partnerAgency || "<span class='text-danger'>None</span>"}</td>
                   <td>${r.worker}</td>
                   <td class="text-right">
                     <button type="button" class="btn btn-sm btn-outline-primary mr-1" onclick="openRecordDetail('${r.glNo}')">View</button>
                     ${canEditRecord() ? `<button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEditRecordModal('${r.glNo}')">Edit or correct</button>` : ""}
                   </td>
-                </tr>
-              `).join("")}
+                </tr>`;
+              }).join("")}
             </tbody>
           </table>
         </div>
@@ -2590,6 +3299,7 @@ function filterRecordsList() {
 }
 
 function canEditRecord() {
+  if (!appState.isOnline) return false;
   const role = appState.currentUser ? appState.currentUser.role : "Staff";
   return role !== "Viewer";
 }
@@ -2714,6 +3424,7 @@ function populateDomWithRecord(rec) {
 
 // Edit or Correct Modal logic (Wireframe 7a)
 function openEditRecordModal(glNo) {
+  if (!offlineWriteGuard("Editing a record")) return;
   const rec = appState.records.find(r => r.glNo === glNo);
   if (!rec) return;
 
@@ -2991,7 +3702,32 @@ function handleAdminTabOpen() {
   if (restrictedCard) restrictedCard.classList.add("hidden");
   if (mainContent) mainContent.classList.remove("hidden");
 
+  refreshAdminOverview();
   switchAdminSubTab("users");
+}
+
+function refreshAdminOverview() {
+  const activeUsers = (appState.users || []).filter(u => u.status === "Active").length;
+  const el = document.getElementById("adminOverviewUsers");
+  if (el) el.textContent = activeUsers || "—";
+
+  const now = new Date();
+  const thisMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  const txnsThisMonth = (appState.records || []).filter(r => (r.date || "").startsWith(thisMonth)).length;
+  const txnEl = document.getElementById("adminOverviewTxns");
+  if (txnEl) txnEl.textContent = txnsThisMonth;
+
+  if (typeof loadMonthlyBudget === "function") {
+    loadMonthlyBudget().then(() => {
+      // Budget overview card is populated via loadMonthlyBudget/loadQuarterlyBudget callbacks
+      const remaining = document.getElementById("budgetRemainingDisplay")?.textContent || "—";
+      const budgetEl = document.getElementById("adminOverviewBudget");
+      if (budgetEl) budgetEl.textContent = remaining;
+      const quarterEl = document.getElementById("adminOverviewQuarter");
+      const badge = document.getElementById("quarterlyHealthBadge");
+      if (quarterEl && badge) quarterEl.textContent = badge.textContent;
+    }).catch(() => {});
+  }
 }
 
 function quickSwitchToRole(targetRole) {
@@ -3078,6 +3814,7 @@ function openEditUserModal(userId) {
 function closeEditUserModal() { document.getElementById('editUserModal').classList.add('hidden'); }
 async function handleUpdateUser(event) {
   event.preventDefault();
+  if (!appState.isOnline) { alert("You are offline. Updating a user requires a live connection."); return; }
   const id = document.getElementById('editUserId').value;
   const payload = { name: document.getElementById('editUserFullName').value.trim(), role: document.getElementById('editUserRole').value };
   const password = document.getElementById('editUserPassword').value;
@@ -3092,6 +3829,7 @@ async function handleUpdateUser(event) {
   }
 }
 async function deleteSystemUser(userId) {
+  if (!appState.isOnline) { alert("You are offline. Deleting a user requires a live connection."); return; }
   const user = appState.users.find(item => String(item.id) === String(userId));
   if (!user) return;
   if (!confirm('Permanently delete the account for ' + user.name + '? This cannot be undone. If the account is linked to saved records or drafts, the system will ask you to disable it instead.')) return;
@@ -3119,6 +3857,7 @@ function updateNewUserRoleHint(role) {
 
 async function handleSaveNewUser(e) {
   e.preventDefault();
+  if (!appState.isOnline) { alert("You are offline. Adding a user requires a live connection."); return; }
   const name = document.getElementById("newUserFullName").value.trim();
   const uname = document.getElementById("newUserName").value.trim().toLowerCase();
   const role = document.getElementById("newUserRole").value;
@@ -3319,12 +4058,17 @@ function handleSaveChecklist(e) {
 }
 
 function toggleAssistanceStatus(typeKey) {
+  if (!appState.isOnline) { alert("You are offline. Cannot change assistance type status."); return; }
   const found = appState.assistanceTypes.find(a => a.type === typeKey);
-  if (found) {
-    found.status = found.status === "Active" ? "Disabled" : "Active";
+  if (!found || !found.id) return;
+  const newStatus = found.status === "Active" ? "Disabled" : "Active";
+  window.adminUpdateAssistanceType(found.id, { status: newStatus }).then(() => {
+    found.status = newStatus;
     saveStorage(STORAGE_KEYS.ASSISTANCE_TYPES, appState.assistanceTypes);
     renderAdminAssistance();
-  }
+  }).catch(err => {
+    alert("Failed to update assistance type: " + (err.message || "Please try again."));
+  });
 }
 
 // 4. Barangay List (Wireframe 9f)
@@ -3434,15 +4178,52 @@ function renderAdminRules() {
   document.getElementById("ruleDraftRetention").value = appState.rules.keepDraftsDays || 30;
 }
 
-function saveAdminRules(e) {
+async function saveAdminRules(e) {
   e.preventDefault();
-  appState.rules.waitingPeriodMonths = parseInt(document.getElementById("ruleWaitingPeriod").value, 10);
-  appState.rules.glValidityDays = parseInt(document.getElementById("ruleGlValidity").value, 10);
-  appState.rules.logoutTimeoutMinutes = parseInt(document.getElementById("ruleLogoutTimeout").value, 10);
-  appState.rules.keepDraftsDays = parseInt(document.getElementById("ruleDraftRetention").value, 10);
+  if (!appState.isOnline) { alert("You are offline. Saving system settings requires a live connection."); return; }
+  const status = document.getElementById("adminRulesStatus");
+  const button = document.querySelector("#adminRulesForm button[type='submit']");
+  if (appState.currentUser?.role !== "Administrator") {
+    if (status) status.textContent = "Only an Administrator can change system settings.";
+    return;
+  }
 
-  saveStorage(STORAGE_KEYS.RULES, appState.rules);
-  alert("Settings saved successfully.");
+  const payload = {
+    waitingPeriodMonths: parseInt(document.getElementById("ruleWaitingPeriod").value, 10),
+    glValidityDays: parseInt(document.getElementById("ruleGlValidity").value, 10),
+    logoutTimeoutMinutes: parseInt(document.getElementById("ruleLogoutTimeout").value, 10),
+    keepDraftsDays: parseInt(document.getElementById("ruleDraftRetention").value, 10)
+  };
+
+  const valid = Number.isInteger(payload.waitingPeriodMonths) && payload.waitingPeriodMonths >= 0 && payload.waitingPeriodMonths <= 24
+    && Number.isInteger(payload.glValidityDays) && payload.glValidityDays >= 1 && payload.glValidityDays <= 365
+    && Number.isInteger(payload.logoutTimeoutMinutes) && payload.logoutTimeoutMinutes >= 1 && payload.logoutTimeoutMinutes <= 1440
+    && Number.isInteger(payload.keepDraftsDays) && payload.keepDraftsDays >= 1 && payload.keepDraftsDays <= 365;
+  if (!valid) {
+    if (status) status.textContent = "Enter valid values within the allowed ranges before saving.";
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Saving settings...";
+  }
+  if (status) status.textContent = "Saving settings to the system...";
+
+  try {
+    if (typeof window.adminUpdateSettings !== "function") {
+      throw new Error("Settings service unavailable");
+    }
+    await window.adminUpdateSettings(payload);
+    if (status) status.textContent = "Settings saved to the system.";
+  } catch (_) {
+    if (status) status.textContent = "Settings could not be saved. Check your connection and try again.";
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Save settings";
+    }
+  }
 }
 
 function resetAdminRules() {
@@ -3517,6 +4298,8 @@ function handleSessionResume(e) {
 // ==========================================================================
 
 document.addEventListener("DOMContentLoaded", function () {
+  initTransactionWorkspace();
+
   // Re-check required fields whenever the user edits a form control.
   const formRoot = document.getElementById("formInputsScrollArea");
   if (formRoot) {

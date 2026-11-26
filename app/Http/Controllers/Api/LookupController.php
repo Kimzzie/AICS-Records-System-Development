@@ -16,7 +16,7 @@ class LookupController extends Controller
         return response()->json([
             'agencies' => PartnerAgency::where('status','Active')->orderBy('name')->get(),
             'barangays' => Barangay::where('is_active',true)->orderBy('name')->pluck('name'),
-            'assistanceTypes' => AssistanceType::with('requirements')->where('status','Active')->orderBy('name')->get(),
+            'assistanceTypes' => AssistanceType::with('requirements')->orderBy('name')->get(),
             'signatories' => Signatory::all(),
             'rules' => SystemSetting::all()->mapWithKeys(fn ($s) => [$s->key => $s->value['value'] ?? $s->value]),
         ]);

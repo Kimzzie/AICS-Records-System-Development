@@ -15,7 +15,7 @@ class Client extends Model
 
     protected function casts(): array
     {
-        return ['birthdate' => 'date', 'monthly_salary' => 'decimal:2'];
+        return ['birthdate' => 'date:Y-m-d', 'monthly_salary' => 'decimal:2'];
     }
 
     public function transactions(): HasMany
@@ -23,3 +23,4 @@ class Client extends Model
         return $this->hasMany(AicsTransaction::class);
     }
 }
+

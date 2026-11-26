@@ -17,6 +17,10 @@
 .env
 .env.backup
 .phpunit.result.cache
+.phpunit.cache/
 
 # Visual Studio workspace cache
 .vs/
+
+# Local development tools
+/.tools/
