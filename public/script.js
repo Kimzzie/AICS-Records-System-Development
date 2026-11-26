@@ -2589,6 +2589,8 @@ function executeSaveRecord() {
   document.getElementById("printGlSavedTimeBadge").textContent = `Saved ${newRecord.savedAt} by ${newRecord.worker}`;
   document.getElementById("printGlPartnerSubtext").textContent = `1 page, for ${partnerAgency || "Partner Agency"}`;
 
+  // Refresh preview so the real server-assigned GL number appears in the printed document
+  updateLivePreview();
   renderStep4DocTab("gl");
 }
 

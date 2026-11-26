@@ -24,3 +24,6 @@
 
 # Local development tools
 /.tools/
+
+# AI session workspace files
+/.superpowers/
