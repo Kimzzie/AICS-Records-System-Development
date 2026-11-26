@@ -1261,7 +1261,11 @@ function renderRecentTransactions() {
   const tbody = document.getElementById("recentTransactionsTableBody");
   if (!tbody) return;
 
-  const sorted = [...appState.records].sort((a, b) => new Date(b.dateIso || b.date) - new Date(a.dateIso || a.date)).slice(0, 5);
+  const glSeq = r => parseInt((r.glNo || "0").split("-")[0], 10);
+  const sorted = [...appState.records].sort((a, b) => {
+    const dateDiff = new Date(b.dateIso || b.date) - new Date(a.dateIso || a.date);
+    return dateDiff !== 0 ? dateDiff : glSeq(b) - glSeq(a);
+  }).slice(0, 5);
 
   tbody.innerHTML = sorted.map(r => `
     <tr>
@@ -3241,9 +3245,10 @@ function filterRecordsList() {
   });
 
   const sortedYears = Object.keys(grouped).sort((a, b) => b - a);
+  const glSeq = r => parseInt((r.glNo || "0").split("-")[0], 10);
 
   container.innerHTML = sortedYears.map(year => {
-    const list = grouped[year];
+    const list = grouped[year].sort((a, b) => glSeq(b) - glSeq(a));
     return `
       <div class="card p-3 record-year-group">
         <div class="year-group-header" onclick="toggleYearGroup('${year}')">
